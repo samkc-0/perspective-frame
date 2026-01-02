@@ -1,6 +1,6 @@
 const fileInput = document.getElementById("file") as HTMLInputElement | null;
 const uploadButton = document.getElementById(
-  "upload-button"
+  "upload-button",
 ) as HTMLButtonElement | null;
 if (!fileInput || !uploadButton)
   throw new Error("expected upload controls, but found none");
@@ -16,12 +16,12 @@ const thickness = document.getElementById("thickness") as HTMLInputElement;
 const opacity = document.getElementById("opacity") as HTMLInputElement;
 const color = document.getElementById("color") as HTMLInputElement;
 const blockResolution = document.getElementById(
-  "block-resolution"
+  "block-resolution",
 ) as HTMLInputElement;
 
 if (!spacing || !thickness || !opacity || !color || !blockResolution)
   throw new Error(
-    "expected spacing, thickness, opacity, color, and block resolution inputs"
+    "expected spacing, thickness, opacity, color, and block resolution inputs",
   );
 
 const spacingValue = document.getElementById("spacing-value");
@@ -31,14 +31,14 @@ const blockResolutionValue = document.getElementById("block-resolution-value");
 
 if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
   throw new Error(
-    "expected spacing, thickness, opacity, and block resolution value elements"
+    "expected spacing, thickness, opacity, and block resolution value elements",
   );
 
 const toggleGridButton = document.getElementById(
-  "toggle-grid-button"
+  "toggle-grid-button",
 ) as HTMLButtonElement | null;
 const togglePosterizeButton = document.getElementById(
-  "toggle-posterize-button"
+  "toggle-posterize-button",
 ) as HTMLButtonElement | null;
 if (!toggleGridButton)
   throw new Error("expected toggle grid button element, but found none");
@@ -49,10 +49,10 @@ const controlBar = document.getElementById("control-bar");
 const hideControlsButton = document.getElementById("hide-controls");
 const openControlsButton = document.getElementById("open-controls");
 const controlPanels = Array.from(
-  document.querySelectorAll<HTMLElement>(".control-panel")
+  document.querySelectorAll<HTMLElement>(".control-panel"),
 );
 const controlIconButtons = Array.from(
-  document.querySelectorAll<HTMLButtonElement>(".control-icon")
+  document.querySelectorAll<HTMLButtonElement>(".control-icon"),
 );
 
 if (!controlBar || !hideControlsButton || !openControlsButton)
@@ -131,7 +131,7 @@ function draw() {
   if (userImageLoaded) {
     const scale = Math.max(
       w / userImage.naturalWidth,
-      h / userImage.naturalHeight
+      h / userImage.naturalHeight,
     );
     const drawWidth = userImage.naturalWidth * scale;
     const drawHeight = userImage.naturalHeight * scale;
@@ -139,7 +139,10 @@ function draw() {
     const offsetY = (h - drawHeight) / 2;
 
     if (posterizeOn) {
-      const processed = getPosterizedImage(Math.round(drawWidth), Math.round(drawHeight));
+      const processed = getPosterizedImage(
+        Math.round(drawWidth),
+        Math.round(drawHeight),
+      );
       ctx.drawImage(processed, offsetX, offsetY, drawWidth, drawHeight);
     } else {
       ctx.drawImage(userImage, offsetX, offsetY, drawWidth, drawHeight);
@@ -191,7 +194,7 @@ function draw() {
 
 function getPosterizedImage(
   targetWidth: number,
-  targetHeight: number
+  targetHeight: number,
 ): HTMLCanvasElement {
   const width = Math.max(1, targetWidth);
   const height = Math.max(1, targetHeight);
@@ -212,7 +215,7 @@ function getPosterizedImage(
   const { sampleWidth, sampleHeight } = getSampleDimensions(
     width,
     height,
-    detailTarget
+    detailTarget,
   );
   blockSampleCanvas.width = sampleWidth;
   blockSampleCanvas.height = sampleHeight;
@@ -228,7 +231,7 @@ function getPosterizedImage(
     0,
     0,
     sampleWidth,
-    sampleHeight
+    sampleHeight,
   );
   applyPosterize(sampleImageData.data);
   blockSampleCtx.putImageData(sampleImageData, 0, 0);
@@ -251,7 +254,10 @@ function applyPosterize(data: Uint8ClampedArray) {
   const histogram = buildHistogram(data);
   if (!histogram.populatedBuckets.length) return;
 
-  const targetBoxes = Math.min(POSTERIZE_COLORS, histogram.populatedBuckets.length);
+  const targetBoxes = Math.min(
+    POSTERIZE_COLORS,
+    histogram.populatedBuckets.length,
+  );
   const boxes = runMedianCut(histogram, targetBoxes);
   if (!boxes.length) return;
 
@@ -271,12 +277,12 @@ function applyPosterize(data: Uint8ClampedArray) {
 function getSampleDimensions(
   width: number,
   height: number,
-  targetCells: number
+  targetCells: number,
 ) {
   const longestSide = Math.max(width, height);
   const desiredCellSize = Math.max(
     BLOCK_MIN_CELL_PX,
-    Math.round(longestSide / targetCells)
+    Math.round(longestSide / targetCells),
   );
   const sampleWidth = Math.max(1, Math.round(width / desiredCellSize));
   const sampleHeight = Math.max(1, Math.round(height / desiredCellSize));
@@ -413,8 +419,7 @@ class ColorBox {
     const sorted = this.indexes
       .slice()
       .sort(
-        (a, b) =>
-          ((a >> shift) & BUCKET_MASK) - ((b >> shift) & BUCKET_MASK)
+        (a, b) => ((a >> shift) & BUCKET_MASK) - ((b >> shift) & BUCKET_MASK),
       );
 
     const { counts } = this.histogram;
@@ -494,7 +499,7 @@ function runMedianCut(histogram: HistogramData, desiredColors: number) {
 
 function assignBucketsToPalette(
   histogram: HistogramData,
-  palette: PaletteColor[]
+  palette: PaletteColor[],
 ) {
   const assignment = new Uint16Array(BUCKET_COUNT);
   if (!palette.length) return assignment;
@@ -556,9 +561,14 @@ fileInput.addEventListener("change", (e) => {
 
 // Controls update
 function syncLabelsAndRedraw() {
-  if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
+  if (
+    !spacingValue ||
+    !thicknessValue ||
+    !opacityValue ||
+    !blockResolutionValue
+  )
     throw new Error(
-      "expected spacing, thickness, opacity, and block resolution value elements"
+      "expected spacing, thickness, opacity, and block resolution value elements",
     );
 
   spacingValue.textContent = spacing.value;
@@ -568,9 +578,11 @@ function syncLabelsAndRedraw() {
   draw();
 }
 
-[spacing, thickness, opacity, color, blockResolution].forEach((inputElement) => {
-  inputElement.addEventListener("input", syncLabelsAndRedraw);
-});
+[spacing, thickness, opacity, color, blockResolution].forEach(
+  (inputElement) => {
+    inputElement.addEventListener("input", syncLabelsAndRedraw);
+  },
+);
 
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
@@ -581,8 +593,12 @@ toggleGridButton.addEventListener("click", () => {
 
 togglePosterizeButton.addEventListener("click", () => {
   posterizeOn = !posterizeOn;
-  togglePosterizeButton.textContent = "Posterize: " + (posterizeOn ? "On" : "Off");
-  togglePosterizeButton.setAttribute("aria-pressed", posterizeOn ? "true" : "false");
+  togglePosterizeButton.textContent =
+    "Downsample: " + (posterizeOn ? "On" : "Off");
+  togglePosterizeButton.setAttribute(
+    "aria-pressed",
+    posterizeOn ? "true" : "false",
+  );
   draw();
 });
 
@@ -602,7 +618,10 @@ function setActivePanel(panelId: string) {
 }
 
 controlIconButtons.forEach((button) => {
-  button.setAttribute("aria-pressed", button.classList.contains("active") ? "true" : "false");
+  button.setAttribute(
+    "aria-pressed",
+    button.classList.contains("active") ? "true" : "false",
+  );
   button.addEventListener("click", () => {
     const targetPanel = button.dataset.panel;
     if (!targetPanel) return;
