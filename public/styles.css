@@ -20,10 +20,7 @@
 body {
   margin: 0;
   font-family:
-    "Iowan Old Style",
-    "Palatino Linotype",
-    "Cormorant Garamond",
-    serif;
+    "Iowan Old Style", "Palatino Linotype", "Cormorant Garamond", serif;
   background: radial-gradient(circle at top, #fdf5e5 0%, #e2cfaa 100%);
   color: var(--text);
   min-height: 100vh;
@@ -34,7 +31,8 @@ body::after {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image: repeating-linear-gradient(
+  background-image:
+    repeating-linear-gradient(
       90deg,
       var(--grain-light),
       var(--grain-light) 2px,
@@ -42,7 +40,7 @@ body::after {
       transparent 4px
     ),
     repeating-linear-gradient(
-      0deg,
+      0dee,
       var(--grain-dark),
       var(--grain-dark) 2px,
       transparent 2px,
@@ -75,7 +73,9 @@ body::after {
   padding: 16px 20px;
   border-radius: 20px;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1.5px var(--border), 0 20px 35px rgba(35, 16, 4, 0.18);
+  box-shadow:
+    inset 0 0 0 1.5px var(--border),
+    0 20px 35px rgba(35, 16, 4, 0.18);
   border: 1px solid rgba(51, 30, 10, 0.2);
 }
 
@@ -140,7 +140,9 @@ button {
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   color: var(--ink);
   box-shadow: 0 8px 18px rgba(67, 26, 7, 0.25);
 }
@@ -180,7 +182,11 @@ button:active {
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(58, 29, 7, 0.3);
-  background: linear-gradient(145deg, rgba(72, 45, 20, 0.7), rgba(15, 10, 6, 0.9));
+  background: linear-gradient(
+    145deg,
+    rgba(72, 45, 20, 0.7),
+    rgba(15, 10, 6, 0.9)
+  );
   box-shadow: none;
   position: relative;
 }
@@ -189,7 +195,6 @@ button:active {
   content: "";
   position: absolute;
   inset: 12px;
-  border: 2px solid rgba(250, 226, 189, 0.5);
   pointer-events: none;
   border-radius: 28px;
 }
@@ -220,7 +225,9 @@ canvas {
   gap: 14px;
   z-index: 10;
   backdrop-filter: blur(12px);
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
   color: #f7e6ce;
 }
 
@@ -290,7 +297,9 @@ canvas {
   padding: 0;
   border-radius: 12px;
   align-self: flex-start;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 4px 10px rgba(0, 0, 0, 0.4);
 }
 
 .control-icons {
