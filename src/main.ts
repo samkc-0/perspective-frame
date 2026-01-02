@@ -1044,6 +1044,7 @@ function handleOutsidePointerDown(event: PointerEvent) {
   if (controlBar.contains(target)) return;
   if (openControlsButton.contains(target)) return;
   hideControls();
+  event.stopPropagation();
 }
 
 document.addEventListener("pointerdown", handleOutsidePointerDown);

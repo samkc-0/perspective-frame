@@ -798,6 +798,7 @@ function handleOutsidePointerDown(event) {
   if (openControlsButton.contains(target))
     return;
   hideControls();
+  event.stopPropagation();
 }
 document.addEventListener("pointerdown", handleOutsidePointerDown);
 restoreSettings();
