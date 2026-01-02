@@ -64,6 +64,7 @@ var posterizeCacheHeight = 0;
 var posterizeCacheRevision = -1;
 var posterizeCacheDetail = Number(blockResolution.value) || DEFAULT_BLOCK_TARGET_CELLS;
 var LAST_IMAGE_STORAGE_KEY = "perspective-frame:last-photo";
+var SETTINGS_STORAGE_KEY = "perspective-frame:settings";
 var POSTERIZE_COLORS = 12;
 var BUCKET_BITS = 5;
 var BUCKET_SIZE = 1 << BUCKET_BITS;
@@ -470,6 +471,79 @@ function restoreLastUserImage() {
     console.warn("Unable to access saved photo", error);
   }
 }
+function persistSettings() {
+  try {
+    const payload = {
+      spacing: Number(spacing.value),
+      thickness: Number(thickness.value),
+      opacity: Number(opacity.value),
+      color: color.value,
+      blockResolution: Number(blockResolution.value),
+      gridOn,
+      posterizeOn,
+      gridOffsetX,
+      gridOffsetY
+    };
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn("Unable to remember settings", error);
+  }
+}
+function applyStoredRangeValue(input, value) {
+  if (!Number.isFinite(value))
+    return;
+  const min = Number(input.min);
+  const max = Number(input.max);
+  let next = value;
+  if (Number.isFinite(min))
+    next = Math.max(min, next);
+  if (Number.isFinite(max))
+    next = Math.min(max, next);
+  input.value = String(next);
+}
+function restoreSettings() {
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw)
+      return;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== "object")
+      return;
+    if (typeof saved.spacing === "number") {
+      applyStoredRangeValue(spacing, saved.spacing);
+    }
+    if (typeof saved.thickness === "number") {
+      applyStoredRangeValue(thickness, saved.thickness);
+    }
+    if (typeof saved.opacity === "number") {
+      applyStoredRangeValue(opacity, saved.opacity);
+    }
+    if (typeof saved.blockResolution === "number") {
+      applyStoredRangeValue(blockResolution, saved.blockResolution);
+    }
+    if (typeof saved.color === "string" && saved.color.length) {
+      color.value = saved.color;
+    }
+    if (typeof saved.gridOn === "boolean") {
+      gridOn = saved.gridOn;
+    }
+    if (typeof saved.posterizeOn === "boolean") {
+      posterizeOn = saved.posterizeOn;
+    }
+    if (typeof saved.gridOffsetX === "number" && Number.isFinite(saved.gridOffsetX)) {
+      gridOffsetX = saved.gridOffsetX;
+    }
+    if (typeof saved.gridOffsetY === "number" && Number.isFinite(saved.gridOffsetY)) {
+      gridOffsetY = saved.gridOffsetY;
+    }
+    updateGridButtonUI();
+    updatePosterizeButtonUI();
+    syncBlockResolutionAvailability();
+    syncColorSwatch();
+  } catch (error) {
+    console.warn("Unable to restore settings", error);
+  }
+}
 function syncLabelsAndRedraw() {
   if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
     throw new Error("expected spacing, thickness, opacity, and block resolution value elements");
@@ -479,6 +553,7 @@ function syncLabelsAndRedraw() {
   blockResolutionValue.textContent = blockResolution.value;
   syncColorSwatch();
   draw();
+  persistSettings();
 }
 [spacing, thickness, opacity, color, blockResolution].forEach((inputElement) => {
   inputElement.addEventListener("input", syncLabelsAndRedraw);
@@ -507,19 +582,27 @@ function syncBlockResolutionAvailability() {
 }
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
-  toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");
-  toggleGridButton.setAttribute("aria-pressed", gridOn ? "true" : "false");
+  updateGridButtonUI();
+  persistSettings();
   draw();
 });
 togglePosterizeButton.addEventListener("click", () => {
   posterizeOn = !posterizeOn;
-  togglePosterizeButton.textContent = "Downsample: " + (posterizeOn ? "On" : "Off");
-  togglePosterizeButton.setAttribute("aria-pressed", posterizeOn ? "true" : "false");
+  updatePosterizeButtonUI();
   syncBlockResolutionAvailability();
+  persistSettings();
   draw();
 });
-toggleGridButton.setAttribute("aria-pressed", "true");
-togglePosterizeButton.setAttribute("aria-pressed", "false");
+function updateGridButtonUI() {
+  toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");
+  toggleGridButton.setAttribute("aria-pressed", gridOn ? "true" : "false");
+}
+function updatePosterizeButtonUI() {
+  togglePosterizeButton.textContent = "Downsample: " + (posterizeOn ? "On" : "Off");
+  togglePosterizeButton.setAttribute("aria-pressed", posterizeOn ? "true" : "false");
+}
+updateGridButtonUI();
+updatePosterizeButtonUI();
 syncBlockResolutionAvailability();
 function setActivePanel(panelId) {
   controlPanels.forEach((panel) => {
@@ -559,6 +642,7 @@ openControlsButton.addEventListener("click", () => {
   const activeIcon = controlIconButtons.find((btn) => btn.classList.contains("active")) || controlIconButtons[0];
   activeIcon?.focus();
 });
+restoreSettings();
 restoreLastUserImage();
 canvas.addEventListener("pointerdown", (event) => {
   if (!event.isPrimary)
@@ -582,6 +666,7 @@ canvas.addEventListener("pointermove", (event) => {
   lastPointerX = event.clientX;
   lastPointerY = event.clientY;
   draw();
+  persistSettings();
 });
 function endGridDrag(event) {
   if (gridDragPointerId !== event.pointerId)

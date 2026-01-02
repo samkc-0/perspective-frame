@@ -96,6 +96,7 @@ let posterizeCacheDetail =
   Number(blockResolution.value) || DEFAULT_BLOCK_TARGET_CELLS;
 
 const LAST_IMAGE_STORAGE_KEY = "perspective-frame:last-photo";
+const SETTINGS_STORAGE_KEY = "perspective-frame:settings";
 const POSTERIZE_COLORS = 12;
 const BUCKET_BITS = 5;
 const BUCKET_SIZE = 1 << BUCKET_BITS;
@@ -330,6 +331,18 @@ type HistogramData = {
   sumG: Float64Array;
   sumB: Float64Array;
   populatedBuckets: number[];
+};
+
+type StoredSettings = {
+  spacing?: number;
+  thickness?: number;
+  opacity?: number;
+  color?: string;
+  blockResolution?: number;
+  gridOn?: boolean;
+  posterizeOn?: boolean;
+  gridOffsetX?: number;
+  gridOffsetY?: number;
 };
 
 function getBucketIndex(r: number, g: number, b: number) {
@@ -616,6 +629,80 @@ function restoreLastUserImage() {
   }
 }
 
+function persistSettings() {
+  try {
+    const payload: StoredSettings = {
+      spacing: Number(spacing.value),
+      thickness: Number(thickness.value),
+      opacity: Number(opacity.value),
+      color: color.value,
+      blockResolution: Number(blockResolution.value),
+      gridOn,
+      posterizeOn,
+      gridOffsetX,
+      gridOffsetY,
+    };
+    window.localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify(payload),
+    );
+  } catch (error) {
+    console.warn("Unable to remember settings", error);
+  }
+}
+
+function applyStoredRangeValue(input: HTMLInputElement, value: number) {
+  if (!Number.isFinite(value)) return;
+  const min = Number(input.min);
+  const max = Number(input.max);
+  let next = value;
+  if (Number.isFinite(min)) next = Math.max(min, next);
+  if (Number.isFinite(max)) next = Math.min(max, next);
+  input.value = String(next);
+}
+
+function restoreSettings() {
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw) as StoredSettings;
+    if (!saved || typeof saved !== "object") return;
+    if (typeof saved.spacing === "number") {
+      applyStoredRangeValue(spacing, saved.spacing);
+    }
+    if (typeof saved.thickness === "number") {
+      applyStoredRangeValue(thickness, saved.thickness);
+    }
+    if (typeof saved.opacity === "number") {
+      applyStoredRangeValue(opacity, saved.opacity);
+    }
+    if (typeof saved.blockResolution === "number") {
+      applyStoredRangeValue(blockResolution, saved.blockResolution);
+    }
+    if (typeof saved.color === "string" && saved.color.length) {
+      color.value = saved.color;
+    }
+    if (typeof saved.gridOn === "boolean") {
+      gridOn = saved.gridOn;
+    }
+    if (typeof saved.posterizeOn === "boolean") {
+      posterizeOn = saved.posterizeOn;
+    }
+    if (typeof saved.gridOffsetX === "number" && Number.isFinite(saved.gridOffsetX)) {
+      gridOffsetX = saved.gridOffsetX;
+    }
+    if (typeof saved.gridOffsetY === "number" && Number.isFinite(saved.gridOffsetY)) {
+      gridOffsetY = saved.gridOffsetY;
+    }
+    updateGridButtonUI();
+    updatePosterizeButtonUI();
+    syncBlockResolutionAvailability();
+    syncColorSwatch();
+  } catch (error) {
+    console.warn("Unable to restore settings", error);
+  }
+}
+
 // Controls update
 function syncLabelsAndRedraw() {
   if (
@@ -634,6 +721,7 @@ function syncLabelsAndRedraw() {
   blockResolutionValue.textContent = blockResolution.value;
   syncColorSwatch();
   draw();
+  persistSettings();
 }
 
 [spacing, thickness, opacity, color, blockResolution].forEach(
@@ -668,25 +756,35 @@ function syncBlockResolutionAvailability() {
 
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
-  toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");
-  toggleGridButton.setAttribute("aria-pressed", gridOn ? "true" : "false");
+  updateGridButtonUI();
+  persistSettings();
   draw();
 });
 
 togglePosterizeButton.addEventListener("click", () => {
   posterizeOn = !posterizeOn;
+  updatePosterizeButtonUI();
+  syncBlockResolutionAvailability();
+  persistSettings();
+  draw();
+});
+
+function updateGridButtonUI() {
+  toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");
+  toggleGridButton.setAttribute("aria-pressed", gridOn ? "true" : "false");
+}
+
+function updatePosterizeButtonUI() {
   togglePosterizeButton.textContent =
     "Downsample: " + (posterizeOn ? "On" : "Off");
   togglePosterizeButton.setAttribute(
     "aria-pressed",
     posterizeOn ? "true" : "false",
   );
-  syncBlockResolutionAvailability();
-  draw();
-});
+}
 
-toggleGridButton.setAttribute("aria-pressed", "true");
-togglePosterizeButton.setAttribute("aria-pressed", "false");
+updateGridButtonUI();
+updatePosterizeButtonUI();
 syncBlockResolutionAvailability();
 
 function setActivePanel(panelId: string) {
@@ -738,6 +836,7 @@ openControlsButton.addEventListener("click", () => {
   activeIcon?.focus();
 });
 
+restoreSettings();
 restoreLastUserImage();
 
 canvas.addEventListener("pointerdown", (event) => {
@@ -759,6 +858,7 @@ canvas.addEventListener("pointermove", (event) => {
   lastPointerX = event.clientX;
   lastPointerY = event.clientY;
   draw();
+  persistSettings();
 });
 
 function endGridDrag(event: PointerEvent) {
