@@ -772,19 +772,24 @@ var firstPanel = controlIconButtons[0]?.dataset.panel || controlPanels[0]?.id ||
 if (firstPanel) {
   setActivePanel(firstPanel);
 }
-hideControlsButton.addEventListener("click", () => {
-  controlBar.classList.add("collapsed");
-  openControlsButton.classList.add("visible");
-  openControlsButton.focus();
-});
-openControlsButton.addEventListener("click", () => {
+function showControls() {
   controlBar.classList.remove("collapsed");
+  controlBar.removeAttribute("aria-hidden");
   openControlsButton.classList.remove("visible");
   const activeIcon = controlIconButtons.find((btn) => btn.classList.contains("active")) || controlIconButtons[0];
   activeIcon?.focus();
-});
+}
+function hideControls() {
+  controlBar.classList.add("collapsed");
+  controlBar.setAttribute("aria-hidden", "true");
+  openControlsButton.classList.add("visible");
+  openControlsButton.focus();
+}
+hideControlsButton.addEventListener("click", hideControls);
+openControlsButton.addEventListener("click", showControls);
 restoreSettings();
 restoreLastUserImage();
+hideControls();
 canvas.addEventListener("pointerdown", (event) => {
   if (!event.isPrimary)
     return;
