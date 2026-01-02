@@ -55,6 +55,12 @@ var lastPointerY = 0;
 var dragStartPointerX = 0;
 var dragStartPointerY = 0;
 var cellDownsampledCells = new Set;
+var lastTapTime = 0;
+var lastTapCanvasX = 0;
+var lastTapCanvasY = 0;
+var lastTapCellKey = null;
+var lastTapDownsampleState = null;
+var filledCells = new Set;
 var posterizeCanvas = document.createElement("canvas");
 var posterizeCtx = posterizeCanvas.getContext("2d");
 if (!posterizeCtx)
@@ -88,6 +94,9 @@ var BLOCK_DETAIL_RANGE = MAX_BLOCK_DETAIL_CELLS / MIN_BLOCK_DETAIL_CELLS;
 var BLOCK_MIN_CELL_PX = 1;
 var GRID_DRAG_DEADZONE_PX = 3;
 var GRID_DRAG_DEADZONE_SQ = GRID_DRAG_DEADZONE_PX * GRID_DRAG_DEADZONE_PX;
+var DOUBLE_TAP_THRESHOLD_MS = 350;
+var DOUBLE_TAP_DISTANCE_PX = 18;
+var DOUBLE_TAP_DISTANCE_SQ = DOUBLE_TAP_DISTANCE_PX * DOUBLE_TAP_DISTANCE_PX;
 function resizeCanvasToContainer() {
   const stage = canvas.parentElement;
   if (!stage)
@@ -130,6 +139,9 @@ function draw() {
       if (cellDownsampledCells.size) {
         const processed = getPosterizedImage(posterizedWidth, posterizedHeight);
         renderCellDownsamples(processed, imageOffsetX, imageOffsetY, drawWidth, drawHeight);
+      }
+      if (filledCells.size) {
+        renderFilledCells();
       }
     }
   } else {
@@ -228,6 +240,36 @@ function renderCellDownsamples(source, imageOffsetX, imageOffsetY, drawWidth, dr
     const srcHeight = overlapHeight * scaleY;
     ctx.drawImage(source, srcX, srcY, srcWidth, srcHeight, overlapLeft, overlapTop, overlapWidth, overlapHeight);
   });
+}
+function renderFilledCells() {
+  const { spacingValue: spacingValue2, normalizedX, normalizedY } = getNormalizedGridOffsets();
+  if (!spacingValue2)
+    return;
+  ctx.save();
+  ctx.fillStyle = color.value;
+  filledCells.forEach((key) => {
+    const [colStr, rowStr] = key.split(",");
+    const col = Number(colStr);
+    const row = Number(rowStr);
+    if (!Number.isFinite(col) || !Number.isFinite(row))
+      return;
+    const cellLeft = col * spacingValue2 - normalizedX;
+    const cellTop = row * spacingValue2 - normalizedY;
+    const cellRight = cellLeft + spacingValue2;
+    const cellBottom = cellTop + spacingValue2;
+    if (cellRight <= 0 || cellBottom <= 0)
+      return;
+    if (cellLeft >= canvas.clientWidth || cellTop >= canvas.clientHeight)
+      return;
+    const overlapLeft = Math.max(cellLeft, 0);
+    const overlapTop = Math.max(cellTop, 0);
+    const width = Math.min(cellRight, canvas.clientWidth) - overlapLeft;
+    const height = Math.min(cellBottom, canvas.clientHeight) - overlapTop;
+    if (width <= 0 || height <= 0)
+      return;
+    ctx.fillRect(overlapLeft, overlapTop, width, height);
+  });
+  ctx.restore();
 }
 function getPosterizedImage(targetWidth, targetHeight) {
   const width = Math.max(1, targetWidth);
@@ -568,7 +610,8 @@ function persistSettings() {
       posterizeOn,
       gridOffsetX,
       gridOffsetY,
-      cellPosterize: Array.from(cellDownsampledCells)
+      cellPosterize: Array.from(cellDownsampledCells),
+      cellFill: Array.from(filledCells)
     };
     window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
   } catch (error) {
@@ -605,7 +648,8 @@ function restoreSettings() {
       applyStoredRangeValue(opacity, saved.opacity);
     }
     if (typeof saved.blockResolution === "number") {
-      applyStoredRangeValue(blockResolution, saved.blockResolution);
+      const sliderValue = saved.blockResolution > BLOCK_DETAIL_SLIDER_MAX ? detailToSliderValue(saved.blockResolution) : saved.blockResolution;
+      applyStoredRangeValue(blockResolution, sliderValue);
     }
     if (typeof saved.color === "string" && saved.color.length) {
       color.value = saved.color;
@@ -627,6 +671,14 @@ function restoreSettings() {
       saved.cellPosterize.forEach((key) => {
         if (typeof key === "string" && key.length) {
           cellDownsampledCells.add(key);
+        }
+      });
+    }
+    filledCells.clear();
+    if (Array.isArray(saved.cellFill)) {
+      saved.cellFill.forEach((key) => {
+        if (typeof key === "string" && key.length) {
+          filledCells.add(key);
         }
       });
     }
@@ -781,38 +833,84 @@ function endGridDrag(event) {
     canvas.releasePointerCapture(event.pointerId);
   } catch (_) {}
   if (shouldToggleCell) {
-    toggleCellAtPointer(event);
+    handleCellTap(event);
   }
 }
 canvas.addEventListener("pointerup", endGridDrag);
 canvas.addEventListener("pointercancel", endGridDrag);
-function toggleCellAtPointer(event) {
+function handleCellTap(event) {
+  const coords = getCanvasCoordinates(event);
+  if (!coords)
+    return;
+  const { x, y } = coords;
+  const cellInfo = getCellInfoAtPosition(x, y);
+  if (!cellInfo)
+    return;
+  const { key } = cellInfo;
+  const now = Date.now();
+  const dx = x - lastTapCanvasX;
+  const dy = y - lastTapCanvasY;
+  const isDouble = lastTapCellKey === key && now - lastTapTime <= DOUBLE_TAP_THRESHOLD_MS && dx * dx + dy * dy <= DOUBLE_TAP_DISTANCE_SQ;
+  let changed = false;
+  if (isDouble) {
+    if (lastTapDownsampleState !== null) {
+      toggleDownsampleCellKey(key);
+      changed = true;
+    }
+    toggleFilledCellKey(key);
+    changed = true;
+    lastTapTime = 0;
+    lastTapCellKey = null;
+    lastTapDownsampleState = null;
+  } else {
+    const newState = toggleDownsampleCellKey(key);
+    lastTapTime = now;
+    lastTapCanvasX = x;
+    lastTapCanvasY = y;
+    lastTapCellKey = key;
+    lastTapDownsampleState = newState;
+    changed = true;
+  }
+  if (changed) {
+    persistSettings();
+    draw();
+  }
+}
+function getCanvasCoordinates(event) {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
-  toggleCellAtPosition(x, y);
+  return { x, y };
 }
-function toggleCellAtPosition(x, y) {
-  if (!userImageLoaded)
-    return;
+function getCellInfoAtPosition(x, y) {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
   if (x < 0 || y < 0 || x > width || y > height)
-    return;
+    return null;
   const { spacingValue: spacingValue2, normalizedX, normalizedY } = getNormalizedGridOffsets();
   if (!spacingValue2)
-    return;
+    return null;
   const col = Math.floor((x + normalizedX) / spacingValue2);
   const row = Math.floor((y + normalizedY) / spacingValue2);
   const key = getCellKey(col, row);
+  return { key, col, row };
+}
+function toggleDownsampleCellKey(key) {
   if (cellDownsampledCells.has(key)) {
     cellDownsampledCells.delete(key);
-  } else {
-    disableGlobalPosterizeForCellMode();
-    cellDownsampledCells.add(key);
+    return false;
   }
-  persistSettings();
-  draw();
+  disableGlobalPosterizeForCellMode();
+  cellDownsampledCells.add(key);
+  return true;
+}
+function toggleFilledCellKey(key) {
+  if (filledCells.has(key)) {
+    filledCells.delete(key);
+    return false;
+  }
+  filledCells.add(key);
+  return true;
 }
 function disableGlobalPosterizeForCellMode() {
   if (!posterizeOn)

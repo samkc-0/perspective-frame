@@ -93,6 +93,12 @@ let lastPointerY = 0;
 let dragStartPointerX = 0;
 let dragStartPointerY = 0;
 const cellDownsampledCells = new Set<string>();
+let lastTapTime = 0;
+let lastTapCanvasX = 0;
+let lastTapCanvasY = 0;
+let lastTapCellKey: string | null = null;
+let lastTapDownsampleState: boolean | null = null;
+const filledCells = new Set<string>();
 const posterizeCanvas = document.createElement("canvas");
 const posterizeCtx = posterizeCanvas.getContext("2d");
 if (!posterizeCtx) throw new Error("expected posterize canvas context");
@@ -126,6 +132,9 @@ const BLOCK_DETAIL_RANGE =
 const BLOCK_MIN_CELL_PX = 1;
 const GRID_DRAG_DEADZONE_PX = 3;
 const GRID_DRAG_DEADZONE_SQ = GRID_DRAG_DEADZONE_PX * GRID_DRAG_DEADZONE_PX;
+const DOUBLE_TAP_THRESHOLD_MS = 350;
+const DOUBLE_TAP_DISTANCE_PX = 18;
+const DOUBLE_TAP_DISTANCE_SQ = DOUBLE_TAP_DISTANCE_PX * DOUBLE_TAP_DISTANCE_PX;
 
 // We draw at a resolution matching the on-screen width for crisp grid lines.
 function resizeCanvasToContainer() {
@@ -197,6 +206,9 @@ function draw() {
           drawWidth,
           drawHeight,
         );
+      }
+      if (filledCells.size) {
+        renderFilledCells();
       }
     }
   } else {
@@ -346,6 +358,35 @@ function renderCellDownsamples(
   });
 }
 
+function renderFilledCells() {
+  const { spacingValue, normalizedX, normalizedY } = getNormalizedGridOffsets();
+  if (!spacingValue) return;
+  ctx.save();
+  ctx.fillStyle = color.value;
+  filledCells.forEach((key) => {
+    const [colStr, rowStr] = key.split(",");
+    const col = Number(colStr);
+    const row = Number(rowStr);
+    if (!Number.isFinite(col) || !Number.isFinite(row)) return;
+
+    const cellLeft = col * spacingValue - normalizedX;
+    const cellTop = row * spacingValue - normalizedY;
+    const cellRight = cellLeft + spacingValue;
+    const cellBottom = cellTop + spacingValue;
+    if (cellRight <= 0 || cellBottom <= 0) return;
+    if (cellLeft >= canvas.clientWidth || cellTop >= canvas.clientHeight) return;
+
+    const overlapLeft = Math.max(cellLeft, 0);
+    const overlapTop = Math.max(cellTop, 0);
+    const width = Math.min(cellRight, canvas.clientWidth) - overlapLeft;
+    const height = Math.min(cellBottom, canvas.clientHeight) - overlapTop;
+    if (width <= 0 || height <= 0) return;
+
+    ctx.fillRect(overlapLeft, overlapTop, width, height);
+  });
+  ctx.restore();
+}
+
 function getPosterizedImage(
   targetWidth: number,
   targetHeight: number,
@@ -481,6 +522,7 @@ type StoredSettings = {
   gridOffsetX?: number;
   gridOffsetY?: number;
   cellPosterize?: string[];
+  cellFill?: string[];
 };
 
 function getBucketIndex(r: number, g: number, b: number) {
@@ -780,6 +822,7 @@ function persistSettings() {
       gridOffsetX,
       gridOffsetY,
       cellPosterize: Array.from(cellDownsampledCells),
+      cellFill: Array.from(filledCells),
     };
     window.localStorage.setItem(
       SETTINGS_STORAGE_KEY,
@@ -816,7 +859,11 @@ function restoreSettings() {
       applyStoredRangeValue(opacity, saved.opacity);
     }
     if (typeof saved.blockResolution === "number") {
-      applyStoredRangeValue(blockResolution, saved.blockResolution);
+      const sliderValue =
+        saved.blockResolution > BLOCK_DETAIL_SLIDER_MAX
+          ? detailToSliderValue(saved.blockResolution)
+          : saved.blockResolution;
+      applyStoredRangeValue(blockResolution, sliderValue);
     }
     if (typeof saved.color === "string" && saved.color.length) {
       color.value = saved.color;
@@ -838,6 +885,14 @@ function restoreSettings() {
       saved.cellPosterize.forEach((key) => {
         if (typeof key === "string" && key.length) {
           cellDownsampledCells.add(key);
+        }
+      });
+    }
+    filledCells.clear();
+    if (Array.isArray(saved.cellFill)) {
+      saved.cellFill.forEach((key) => {
+        if (typeof key === "string" && key.length) {
+          filledCells.add(key);
         }
       });
     }
@@ -1028,38 +1083,89 @@ function endGridDrag(event: PointerEvent) {
     // ignore
   }
   if (shouldToggleCell) {
-    toggleCellAtPointer(event);
+    handleCellTap(event);
   }
 }
 
 canvas.addEventListener("pointerup", endGridDrag);
 canvas.addEventListener("pointercancel", endGridDrag);
 
-function toggleCellAtPointer(event: PointerEvent) {
+function handleCellTap(event: PointerEvent) {
+  const coords = getCanvasCoordinates(event);
+  if (!coords) return;
+  const { x, y } = coords;
+  const cellInfo = getCellInfoAtPosition(x, y);
+  if (!cellInfo) return;
+  const { key } = cellInfo;
+  const now = Date.now();
+  const dx = x - lastTapCanvasX;
+  const dy = y - lastTapCanvasY;
+  const isDouble =
+    lastTapCellKey === key &&
+    now - lastTapTime <= DOUBLE_TAP_THRESHOLD_MS &&
+    dx * dx + dy * dy <= DOUBLE_TAP_DISTANCE_SQ;
+  let changed = false;
+  if (isDouble) {
+    if (lastTapDownsampleState !== null) {
+      toggleDownsampleCellKey(key);
+      changed = true;
+    }
+    toggleFilledCellKey(key);
+    changed = true;
+    lastTapTime = 0;
+    lastTapCellKey = null;
+    lastTapDownsampleState = null;
+  } else {
+    const newState = toggleDownsampleCellKey(key);
+    lastTapTime = now;
+    lastTapCanvasX = x;
+    lastTapCanvasY = y;
+    lastTapCellKey = key;
+    lastTapDownsampleState = newState;
+    changed = true;
+  }
+  if (changed) {
+    persistSettings();
+    draw();
+  }
+}
+
+function getCanvasCoordinates(event: PointerEvent) {
   const rect = canvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
-  toggleCellAtPosition(x, y);
+  return { x, y };
 }
 
-function toggleCellAtPosition(x: number, y: number) {
-  if (!userImageLoaded) return;
+function getCellInfoAtPosition(x: number, y: number) {
   const width = canvas.clientWidth;
   const height = canvas.clientHeight;
-  if (x < 0 || y < 0 || x > width || y > height) return;
+  if (x < 0 || y < 0 || x > width || y > height) return null;
   const { spacingValue, normalizedX, normalizedY } = getNormalizedGridOffsets();
-  if (!spacingValue) return;
+  if (!spacingValue) return null;
   const col = Math.floor((x + normalizedX) / spacingValue);
   const row = Math.floor((y + normalizedY) / spacingValue);
   const key = getCellKey(col, row);
+  return { key, col, row };
+}
+
+function toggleDownsampleCellKey(key: string) {
   if (cellDownsampledCells.has(key)) {
     cellDownsampledCells.delete(key);
-  } else {
-    disableGlobalPosterizeForCellMode();
-    cellDownsampledCells.add(key);
+    return false;
   }
-  persistSettings();
-  draw();
+  disableGlobalPosterizeForCellMode();
+  cellDownsampledCells.add(key);
+  return true;
+}
+
+function toggleFilledCellKey(key: string) {
+  if (filledCells.has(key)) {
+    filledCells.delete(key);
+    return false;
+  }
+  filledCells.add(key);
+  return true;
 }
 
 function disableGlobalPosterizeForCellMode() {
