@@ -441,7 +441,7 @@ toggleGridButton.addEventListener("click", () => {
 });
 togglePosterizeButton.addEventListener("click", () => {
   posterizeOn = !posterizeOn;
-  togglePosterizeButton.textContent = "Posterize: " + (posterizeOn ? "On" : "Off");
+  togglePosterizeButton.textContent = "Downsample: " + (posterizeOn ? "On" : "Off");
   togglePosterizeButton.setAttribute("aria-pressed", posterizeOn ? "true" : "false");
   draw();
 });
