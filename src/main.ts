@@ -19,11 +19,16 @@ const color = document.getElementById("color") as HTMLInputElement;
 const blockResolution = document.getElementById(
   "block-resolution",
 ) as HTMLInputElement;
+const blockResolutionUnit = document.getElementById(
+  "block-resolution-unit",
+) as HTMLElement | null;
 
 if (!spacing || !thickness || !opacity || !color || !blockResolution)
   throw new Error(
     "expected spacing, thickness, opacity, color, and block resolution inputs",
   );
+if (!blockResolutionUnit)
+  throw new Error("expected block resolution unit element");
 
 const spacingValue = document.getElementById("spacing-value");
 const thicknessValue = document.getElementById("thickness-value");
@@ -89,8 +94,7 @@ let imageRevision = 0;
 let posterizeCacheWidth = 0;
 let posterizeCacheHeight = 0;
 let posterizeCacheRevision = -1;
-let posterizeCacheDetail =
-  Number(blockResolution.value) || DEFAULT_BLOCK_TARGET_CELLS;
+let posterizeCacheDetail = getBlockTargetCells();
 
 const LAST_IMAGE_STORAGE_KEY = "perspective-frame:last-photo";
 const SETTINGS_STORAGE_KEY = "perspective-frame:settings";
@@ -104,7 +108,7 @@ const BLUE_SHIFT = 0;
 const BUCKET_REDUCTION_SHIFT = 8 - BUCKET_BITS;
 const BUCKET_MASK = BUCKET_SIZE - 1;
 const DEFAULT_BLOCK_TARGET_CELLS = 90;
-const BLOCK_MIN_CELL_PX = 5;
+const BLOCK_MIN_CELL_PX = 1;
 const GRID_DRAG_DEADZONE_PX = 3;
 const GRID_DRAG_DEADZONE_SQ = GRID_DRAG_DEADZONE_PX * GRID_DRAG_DEADZONE_PX;
 
@@ -377,6 +381,9 @@ function getSampleDimensions(
   height: number,
   targetCells: number,
 ) {
+  if (!Number.isFinite(targetCells) || targetCells <= 0) {
+    return { sampleWidth: width, sampleHeight: height };
+  }
   const longestSide = Math.max(width, height);
   const desiredCellSize = Math.max(
     BLOCK_MIN_CELL_PX,
@@ -390,9 +397,11 @@ function getSampleDimensions(
 function getBlockTargetCells() {
   const raw = Number(blockResolution.value);
   const min = Number(blockResolution.min) || 1;
-  const max = Number(blockResolution.max) || raw || DEFAULT_BLOCK_TARGET_CELLS;
+  const maxAttr =
+    Number(blockResolution.max) || raw || DEFAULT_BLOCK_TARGET_CELLS;
   if (!Number.isFinite(raw)) return DEFAULT_BLOCK_TARGET_CELLS;
-  return Math.max(min, Math.min(max, raw));
+  if (raw >= maxAttr) return Infinity;
+  return Math.max(min, Math.min(maxAttr, raw));
 }
 
 type PaletteColor = {
@@ -807,7 +816,13 @@ function syncLabelsAndRedraw() {
   spacingValue.textContent = spacing.value;
   thicknessValue.textContent = thickness.value;
   opacityValue.textContent = opacity.value;
-  blockResolutionValue.textContent = blockResolution.value;
+  if (blockResolution.value === blockResolution.max) {
+    blockResolutionValue.textContent = "Full detail";
+    blockResolutionUnit.textContent = "";
+  } else {
+    blockResolutionValue.textContent = blockResolution.value;
+    blockResolutionUnit.textContent = "cells";
+  }
   syncColorSwatch();
   draw();
   persistSettings();

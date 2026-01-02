@@ -13,8 +13,11 @@ var thickness = document.getElementById("thickness");
 var opacity = document.getElementById("opacity");
 var color = document.getElementById("color");
 var blockResolution = document.getElementById("block-resolution");
+var blockResolutionUnit = document.getElementById("block-resolution-unit");
 if (!spacing || !thickness || !opacity || !color || !blockResolution)
   throw new Error("expected spacing, thickness, opacity, color, and block resolution inputs");
+if (!blockResolutionUnit)
+  throw new Error("expected block resolution unit element");
 var spacingValue = document.getElementById("spacing-value");
 var thicknessValue = document.getElementById("thickness-value");
 var opacityValue = document.getElementById("opacity-value");
@@ -62,7 +65,7 @@ var imageRevision = 0;
 var posterizeCacheWidth = 0;
 var posterizeCacheHeight = 0;
 var posterizeCacheRevision = -1;
-var posterizeCacheDetail = Number(blockResolution.value) || DEFAULT_BLOCK_TARGET_CELLS;
+var posterizeCacheDetail = getBlockTargetCells();
 var LAST_IMAGE_STORAGE_KEY = "perspective-frame:last-photo";
 var SETTINGS_STORAGE_KEY = "perspective-frame:settings";
 var POSTERIZE_COLORS = 12;
@@ -75,7 +78,7 @@ var BLUE_SHIFT = 0;
 var BUCKET_REDUCTION_SHIFT = 8 - BUCKET_BITS;
 var BUCKET_MASK = BUCKET_SIZE - 1;
 var DEFAULT_BLOCK_TARGET_CELLS = 90;
-var BLOCK_MIN_CELL_PX = 5;
+var BLOCK_MIN_CELL_PX = 1;
 var GRID_DRAG_DEADZONE_PX = 3;
 var GRID_DRAG_DEADZONE_SQ = GRID_DRAG_DEADZONE_PX * GRID_DRAG_DEADZONE_PX;
 function resizeCanvasToContainer() {
@@ -251,6 +254,9 @@ function applyPosterize(data) {
   }
 }
 function getSampleDimensions(width, height, targetCells) {
+  if (!Number.isFinite(targetCells) || targetCells <= 0) {
+    return { sampleWidth: width, sampleHeight: height };
+  }
   const longestSide = Math.max(width, height);
   const desiredCellSize = Math.max(BLOCK_MIN_CELL_PX, Math.round(longestSide / targetCells));
   const sampleWidth = Math.max(1, Math.round(width / desiredCellSize));
@@ -260,10 +266,12 @@ function getSampleDimensions(width, height, targetCells) {
 function getBlockTargetCells() {
   const raw = Number(blockResolution.value);
   const min = Number(blockResolution.min) || 1;
-  const max = Number(blockResolution.max) || raw || DEFAULT_BLOCK_TARGET_CELLS;
+  const maxAttr = Number(blockResolution.max) || raw || DEFAULT_BLOCK_TARGET_CELLS;
   if (!Number.isFinite(raw))
     return DEFAULT_BLOCK_TARGET_CELLS;
-  return Math.max(min, Math.min(max, raw));
+  if (raw >= maxAttr)
+    return Infinity;
+  return Math.max(min, Math.min(maxAttr, raw));
 }
 function getCellKey(col, row) {
   return `${col},${row}`;
@@ -609,7 +617,13 @@ function syncLabelsAndRedraw() {
   spacingValue.textContent = spacing.value;
   thicknessValue.textContent = thickness.value;
   opacityValue.textContent = opacity.value;
-  blockResolutionValue.textContent = blockResolution.value;
+  if (blockResolution.value === blockResolution.max) {
+    blockResolutionValue.textContent = "Full detail";
+    blockResolutionUnit.textContent = "";
+  } else {
+    blockResolutionValue.textContent = blockResolution.value;
+    blockResolutionUnit.textContent = "cells";
+  }
   syncColorSwatch();
   draw();
   persistSettings();
