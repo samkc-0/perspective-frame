@@ -1,5 +1,6 @@
 const fileInput = document.getElementById("file");
 const canvas = document.getElementById("canvas")! as HTMLCanvasElement;
+if (!canvas) renderErrorAndThrow("expected canvas element");
 const ctx = canvas.getContext("2d");
 
 const spacing = document.getElementById("spacing");
@@ -20,7 +21,12 @@ let gridOn = true;
 
 // We draw at a resolution matching the on-screen width for crisp grid lines.
 function resizeCanvasToContainer() {
-  const stage = canvas.parentElement;
+  const stage = canvas.parentElement!;
+  if (stage)
+    renderErrorAndThrow(
+      "expected canvas element to have a parent container with class 'stage'",
+    );
+
   const rect = stage.getBoundingClientRect();
   const displayWidth = Math.max(1, Math.floor(rect.width));
   const dpr = window.devicePixelRatio || 1;
@@ -137,3 +143,12 @@ window.addEventListener("resize", () => {
 
 // Initial render
 syncLabelsAndRedraw();
+
+function renderErrorAndThrow(msg: string) {
+  const errorMessage = document.createElement("p");
+  errorMessage.classList.add("error");
+  errorMessage.textContent = `Error: ${msg}`;
+  document.body.appendChild(errorMessage);
+  console.error(msg);
+  throw new Error(msg);
+}

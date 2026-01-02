@@ -1,6 +1,8 @@
 // src/main.ts
 var fileInput = document.getElementById("file");
 var canvas = document.getElementById("canvas");
+if (!canvas)
+  renderErrorAndThrow("expected canvas element");
 var ctx = canvas.getContext("2d");
 var spacing = document.getElementById("spacing");
 var thickness = document.getElementById("thickness");
@@ -16,6 +18,8 @@ var imgLoaded = false;
 var gridOn = true;
 function resizeCanvasToContainer() {
   const stage = canvas.parentElement;
+  if (stage)
+    renderErrorAndThrow("expected canvas element to have a parent container with class 'stage'");
   const rect = stage.getBoundingClientRect();
   const displayWidth = Math.max(1, Math.floor(rect.width));
   const dpr = window.devicePixelRatio || 1;
@@ -99,3 +103,11 @@ window.addEventListener("resize", () => {
   window.__gridResizeTimer = setTimeout(draw, 80);
 });
 syncLabelsAndRedraw();
+function renderErrorAndThrow(msg) {
+  const errorMessage = document.createElement("p");
+  errorMessage.classList.add("error");
+  errorMessage.textContent = msg;
+  document.body.appendChild(errorMessage);
+  console.error(msg);
+  throw new Error(msg);
+}
