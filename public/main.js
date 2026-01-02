@@ -1,7 +1,8 @@
 // src/main.ts
 var fileInput = document.getElementById("file");
-if (!fileInput)
-  throw new Error("expected file input element, but found none");
+var uploadButton = document.getElementById("upload-button");
+if (!fileInput || !uploadButton)
+  throw new Error("expected upload controls, but found none");
 var canvas = document.getElementById("canvas");
 if (!canvas)
   throw new Error("expected canvas element, but found none");
@@ -89,6 +90,10 @@ function draw() {
   }
   ctx.restore();
 }
+uploadButton.addEventListener("click", () => {
+  fileInput.value = "";
+  fileInput.click();
+});
 fileInput.addEventListener("change", (e) => {
   if (!e.target || !(e.target instanceof HTMLInputElement)) {
     throw new Error("expected file input element");

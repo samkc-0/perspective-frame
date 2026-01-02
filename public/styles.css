@@ -250,6 +250,13 @@ canvas {
   gap: 10px;
 }
 
+.control-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .control-panel.active {
   display: flex;
 }

@@ -1,5 +1,9 @@
-const fileInput = document.getElementById("file");
-if (!fileInput) throw new Error("expected file input element, but found none");
+const fileInput = document.getElementById("file") as HTMLInputElement | null;
+const uploadButton = document.getElementById(
+  "upload-button"
+) as HTMLButtonElement | null;
+if (!fileInput || !uploadButton)
+  throw new Error("expected upload controls, but found none");
 
 const canvas = document.getElementById("canvas")! as HTMLCanvasElement;
 
@@ -132,8 +136,14 @@ function draw() {
   ctx.restore();
 }
 
+// Trigger hidden file input so the button matches the other controls
+uploadButton.addEventListener("click", () => {
+  fileInput.value = "";
+  fileInput.click();
+});
+
 // Handle file upload (local only)
-fileInput!.addEventListener("change", (e) => {
+fileInput.addEventListener("change", (e) => {
   if (!e.target || !(e.target instanceof HTMLInputElement)) {
     throw new Error("expected file input element");
   }
