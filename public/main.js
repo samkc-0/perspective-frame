@@ -22,7 +22,7 @@ var spacingValue = document.getElementById("spacing-value");
 var thicknessValue = document.getElementById("thickness-value");
 var opacityValue = document.getElementById("opacity-value");
 var blockResolutionValue = document.getElementById("block-resolution-value");
-if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
+if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue || !blockResolutionUnit)
   throw new Error("expected spacing, thickness, opacity, and block resolution value elements");
 var toggleGridButton = document.getElementById("toggle-grid-button");
 var togglePosterizeButton = document.getElementById("toggle-posterize-button");
@@ -40,6 +40,8 @@ if (!controlBar || !hideControlsButton || !openControlsButton)
   throw new Error("expected control bar elements");
 if (!controlPanels.length || !controlIconButtons.length)
   throw new Error("expected control panels and icon buttons");
+initializeBlockResolutionSlider();
+updateBlockResolutionLabel();
 var userImage = new Image;
 var userImageLoaded = false;
 var gridOn = true;
@@ -78,6 +80,11 @@ var BLUE_SHIFT = 0;
 var BUCKET_REDUCTION_SHIFT = 8 - BUCKET_BITS;
 var BUCKET_MASK = BUCKET_SIZE - 1;
 var DEFAULT_BLOCK_TARGET_CELLS = 90;
+var MIN_BLOCK_DETAIL_CELLS = 30;
+var MAX_BLOCK_DETAIL_CELLS = 2000;
+var BLOCK_DETAIL_SLIDER_MIN = 0;
+var BLOCK_DETAIL_SLIDER_MAX = 100;
+var BLOCK_DETAIL_RANGE = MAX_BLOCK_DETAIL_CELLS / MIN_BLOCK_DETAIL_CELLS;
 var BLOCK_MIN_CELL_PX = 1;
 var GRID_DRAG_DEADZONE_PX = 3;
 var GRID_DRAG_DEADZONE_SQ = GRID_DRAG_DEADZONE_PX * GRID_DRAG_DEADZONE_PX;
@@ -163,6 +170,29 @@ function getNormalizedGridOffsets(currentSpacing) {
   const normalizedX = (gridOffsetX % spacingValue2 + spacingValue2) % spacingValue2;
   const normalizedY = (gridOffsetY % spacingValue2 + spacingValue2) % spacingValue2;
   return { spacingValue: spacingValue2, normalizedX, normalizedY };
+}
+function initializeBlockResolutionSlider() {
+  blockResolution.min = String(BLOCK_DETAIL_SLIDER_MIN);
+  blockResolution.max = String(BLOCK_DETAIL_SLIDER_MAX);
+  if (!blockResolution.step)
+    blockResolution.step = "1";
+  blockResolution.value = String(detailToSliderValue(DEFAULT_BLOCK_TARGET_CELLS));
+}
+function sliderValueToDetail(value) {
+  if (value >= BLOCK_DETAIL_SLIDER_MAX)
+    return Infinity;
+  const normalized = Math.max(0, Math.min(1, value / BLOCK_DETAIL_SLIDER_MAX));
+  const detail = MIN_BLOCK_DETAIL_CELLS * Math.pow(BLOCK_DETAIL_RANGE, normalized);
+  return Math.max(MIN_BLOCK_DETAIL_CELLS, Math.round(detail));
+}
+function detailToSliderValue(detail) {
+  if (!Number.isFinite(detail) || detail >= MAX_BLOCK_DETAIL_CELLS) {
+    return BLOCK_DETAIL_SLIDER_MAX;
+  }
+  const clamped = Math.max(MIN_BLOCK_DETAIL_CELLS, Math.min(MAX_BLOCK_DETAIL_CELLS, detail));
+  const ratio = clamped / MIN_BLOCK_DETAIL_CELLS;
+  const normalized = Math.log(ratio) / Math.log(BLOCK_DETAIL_RANGE);
+  return Math.round(Math.max(0, Math.min(1, normalized)) * BLOCK_DETAIL_SLIDER_MAX);
 }
 function renderCellDownsamples(source, imageOffsetX, imageOffsetY, drawWidth, drawHeight) {
   const { spacingValue: spacingValue2, normalizedX, normalizedY } = getNormalizedGridOffsets();
@@ -264,14 +294,10 @@ function getSampleDimensions(width, height, targetCells) {
   return { sampleWidth, sampleHeight };
 }
 function getBlockTargetCells() {
-  const raw = Number(blockResolution.value);
-  const min = Number(blockResolution.min) || 1;
-  const maxAttr = Number(blockResolution.max) || raw || DEFAULT_BLOCK_TARGET_CELLS;
-  if (!Number.isFinite(raw))
+  const sliderValue = Number(blockResolution.value);
+  if (!Number.isFinite(sliderValue))
     return DEFAULT_BLOCK_TARGET_CELLS;
-  if (raw >= maxAttr)
-    return Infinity;
-  return Math.max(min, Math.min(maxAttr, raw));
+  return sliderValueToDetail(sliderValue);
 }
 function getCellKey(col, row) {
   return `${col},${row}`;
@@ -606,6 +632,7 @@ function restoreSettings() {
     }
     updateGridButtonUI();
     updatePosterizeButtonUI();
+    updateBlockResolutionLabel();
     syncColorSwatch();
   } catch (error) {
     console.warn("Unable to restore settings", error);
@@ -617,13 +644,7 @@ function syncLabelsAndRedraw() {
   spacingValue.textContent = spacing.value;
   thicknessValue.textContent = thickness.value;
   opacityValue.textContent = opacity.value;
-  if (blockResolution.value === blockResolution.max) {
-    blockResolutionValue.textContent = "Full detail";
-    blockResolutionUnit.textContent = "";
-  } else {
-    blockResolutionValue.textContent = blockResolution.value;
-    blockResolutionUnit.textContent = "cells";
-  }
+  updateBlockResolutionLabel();
   syncColorSwatch();
   draw();
   persistSettings();
@@ -635,6 +656,17 @@ function syncColorSwatch() {
   if (!colorPanelButton)
     return;
   colorPanelButton.style.setProperty("--color-chip-color", color.value);
+}
+function updateBlockResolutionLabel() {
+  const sliderValue = Number(blockResolution.value);
+  const detail = sliderValueToDetail(sliderValue);
+  if (!Number.isFinite(detail)) {
+    blockResolutionValue.textContent = "Full detail";
+    blockResolutionUnit.textContent = "";
+  } else {
+    blockResolutionValue.textContent = detail.toString();
+    blockResolutionUnit.textContent = "cells";
+  }
 }
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;

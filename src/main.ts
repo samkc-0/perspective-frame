@@ -35,7 +35,13 @@ const thicknessValue = document.getElementById("thickness-value");
 const opacityValue = document.getElementById("opacity-value");
 const blockResolutionValue = document.getElementById("block-resolution-value");
 
-if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
+if (
+  !spacingValue ||
+  !thicknessValue ||
+  !opacityValue ||
+  !blockResolutionValue ||
+  !blockResolutionUnit
+)
   throw new Error(
     "expected spacing, thickness, opacity, and block resolution value elements",
   );
@@ -70,6 +76,9 @@ if (!controlBar || !hideControlsButton || !openControlsButton)
 
 if (!controlPanels.length || !controlIconButtons.length)
   throw new Error("expected control panels and icon buttons");
+
+initializeBlockResolutionSlider();
+updateBlockResolutionLabel();
 
 let userImage = new Image();
 let userImageLoaded = false;
@@ -108,6 +117,12 @@ const BLUE_SHIFT = 0;
 const BUCKET_REDUCTION_SHIFT = 8 - BUCKET_BITS;
 const BUCKET_MASK = BUCKET_SIZE - 1;
 const DEFAULT_BLOCK_TARGET_CELLS = 90;
+const MIN_BLOCK_DETAIL_CELLS = 30;
+const MAX_BLOCK_DETAIL_CELLS = 2000;
+const BLOCK_DETAIL_SLIDER_MIN = 0;
+const BLOCK_DETAIL_SLIDER_MAX = 100;
+const BLOCK_DETAIL_RANGE =
+  MAX_BLOCK_DETAIL_CELLS / MIN_BLOCK_DETAIL_CELLS;
 const BLOCK_MIN_CELL_PX = 1;
 const GRID_DRAG_DEADZONE_PX = 3;
 const GRID_DRAG_DEADZONE_SQ = GRID_DRAG_DEADZONE_PX * GRID_DRAG_DEADZONE_PX;
@@ -239,6 +254,43 @@ function getNormalizedGridOffsets(currentSpacing?: number) {
   const normalizedX = ((gridOffsetX % spacingValue) + spacingValue) % spacingValue;
   const normalizedY = ((gridOffsetY % spacingValue) + spacingValue) % spacingValue;
   return { spacingValue, normalizedX, normalizedY };
+}
+
+function initializeBlockResolutionSlider() {
+  blockResolution.min = String(BLOCK_DETAIL_SLIDER_MIN);
+  blockResolution.max = String(BLOCK_DETAIL_SLIDER_MAX);
+  if (!blockResolution.step) blockResolution.step = "1";
+  blockResolution.value = String(
+    detailToSliderValue(DEFAULT_BLOCK_TARGET_CELLS),
+  );
+}
+
+function sliderValueToDetail(value: number) {
+  if (value >= BLOCK_DETAIL_SLIDER_MAX) return Infinity;
+  const normalized = Math.max(
+    0,
+    Math.min(1, value / BLOCK_DETAIL_SLIDER_MAX),
+  );
+  const detail =
+    MIN_BLOCK_DETAIL_CELLS *
+    Math.pow(BLOCK_DETAIL_RANGE, normalized);
+  return Math.max(MIN_BLOCK_DETAIL_CELLS, Math.round(detail));
+}
+
+function detailToSliderValue(detail: number) {
+  if (!Number.isFinite(detail) || detail >= MAX_BLOCK_DETAIL_CELLS) {
+    return BLOCK_DETAIL_SLIDER_MAX;
+  }
+  const clamped = Math.max(
+    MIN_BLOCK_DETAIL_CELLS,
+    Math.min(MAX_BLOCK_DETAIL_CELLS, detail),
+  );
+  const ratio = clamped / MIN_BLOCK_DETAIL_CELLS;
+  const normalized =
+    Math.log(ratio) / Math.log(BLOCK_DETAIL_RANGE);
+  return Math.round(
+    Math.max(0, Math.min(1, normalized)) * BLOCK_DETAIL_SLIDER_MAX,
+  );
 }
 
 function renderCellDownsamples(
@@ -395,13 +447,9 @@ function getSampleDimensions(
 }
 
 function getBlockTargetCells() {
-  const raw = Number(blockResolution.value);
-  const min = Number(blockResolution.min) || 1;
-  const maxAttr =
-    Number(blockResolution.max) || raw || DEFAULT_BLOCK_TARGET_CELLS;
-  if (!Number.isFinite(raw)) return DEFAULT_BLOCK_TARGET_CELLS;
-  if (raw >= maxAttr) return Infinity;
-  return Math.max(min, Math.min(maxAttr, raw));
+  const sliderValue = Number(blockResolution.value);
+  if (!Number.isFinite(sliderValue)) return DEFAULT_BLOCK_TARGET_CELLS;
+  return sliderValueToDetail(sliderValue);
 }
 
 type PaletteColor = {
@@ -795,6 +843,7 @@ function restoreSettings() {
     }
     updateGridButtonUI();
     updatePosterizeButtonUI();
+    updateBlockResolutionLabel();
     syncColorSwatch();
   } catch (error) {
     console.warn("Unable to restore settings", error);
@@ -816,13 +865,7 @@ function syncLabelsAndRedraw() {
   spacingValue.textContent = spacing.value;
   thicknessValue.textContent = thickness.value;
   opacityValue.textContent = opacity.value;
-  if (blockResolution.value === blockResolution.max) {
-    blockResolutionValue.textContent = "Full detail";
-    blockResolutionUnit.textContent = "";
-  } else {
-    blockResolutionValue.textContent = blockResolution.value;
-    blockResolutionUnit.textContent = "cells";
-  }
+  updateBlockResolutionLabel();
   syncColorSwatch();
   draw();
   persistSettings();
@@ -837,6 +880,18 @@ function syncLabelsAndRedraw() {
 function syncColorSwatch() {
   if (!colorPanelButton) return;
   colorPanelButton.style.setProperty("--color-chip-color", color.value);
+}
+
+function updateBlockResolutionLabel() {
+  const sliderValue = Number(blockResolution.value);
+  const detail = sliderValueToDetail(sliderValue);
+  if (!Number.isFinite(detail)) {
+    blockResolutionValue.textContent = "Full detail";
+    blockResolutionUnit.textContent = "";
+  } else {
+    blockResolutionValue.textContent = detail.toString();
+    blockResolutionUnit.textContent = "cells";
+  }
 }
 
 toggleGridButton.addEventListener("click", () => {
