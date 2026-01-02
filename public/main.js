@@ -13,11 +13,8 @@ var thickness = document.getElementById("thickness");
 var opacity = document.getElementById("opacity");
 var color = document.getElementById("color");
 var blockResolution = document.getElementById("block-resolution");
-var blockPanelElement = document.getElementById("block-panel");
 if (!spacing || !thickness || !opacity || !color || !blockResolution)
   throw new Error("expected spacing, thickness, opacity, color, and block resolution inputs");
-if (!blockPanelElement)
-  throw new Error("expected color block detail panel element");
 var spacingValue = document.getElementById("spacing-value");
 var thicknessValue = document.getElementById("thickness-value");
 var opacityValue = document.getElementById("opacity-value");
@@ -36,7 +33,6 @@ var openControlsButton = document.getElementById("open-controls");
 var controlPanels = Array.from(document.querySelectorAll(".control-panel"));
 var controlIconButtons = Array.from(document.querySelectorAll(".control-icon"));
 var colorPanelButton = controlIconButtons.find((btn) => btn.dataset.panel === "color-panel") || null;
-var blockPanelButton = controlIconButtons.find((btn) => btn.dataset.panel === "block-panel") || null;
 if (!controlBar || !hideControlsButton || !openControlsButton)
   throw new Error("expected control bar elements");
 if (!controlPanels.length || !controlIconButtons.length)
@@ -48,8 +44,12 @@ var posterizeOn = false;
 var gridOffsetX = 0;
 var gridOffsetY = 0;
 var gridDragPointerId = null;
+var gridDragMoved = false;
 var lastPointerX = 0;
 var lastPointerY = 0;
+var dragStartPointerX = 0;
+var dragStartPointerY = 0;
+var cellDownsampledCells = new Set;
 var posterizeCanvas = document.createElement("canvas");
 var posterizeCtx = posterizeCanvas.getContext("2d");
 if (!posterizeCtx)
@@ -76,6 +76,8 @@ var BUCKET_REDUCTION_SHIFT = 8 - BUCKET_BITS;
 var BUCKET_MASK = BUCKET_SIZE - 1;
 var DEFAULT_BLOCK_TARGET_CELLS = 90;
 var BLOCK_MIN_CELL_PX = 5;
+var GRID_DRAG_DEADZONE_PX = 3;
+var GRID_DRAG_DEADZONE_SQ = GRID_DRAG_DEADZONE_PX * GRID_DRAG_DEADZONE_PX;
 function resizeCanvasToContainer() {
   const stage = canvas.parentElement;
   if (!stage)
@@ -106,13 +108,19 @@ function draw() {
     const scale = Math.max(w / userImage.naturalWidth, h / userImage.naturalHeight);
     const drawWidth = userImage.naturalWidth * scale;
     const drawHeight = userImage.naturalHeight * scale;
-    const offsetX2 = (w - drawWidth) / 2;
-    const offsetY2 = (h - drawHeight) / 2;
+    const imageOffsetX = (w - drawWidth) / 2;
+    const imageOffsetY = (h - drawHeight) / 2;
+    const posterizedWidth = Math.round(drawWidth);
+    const posterizedHeight = Math.round(drawHeight);
     if (posterizeOn) {
-      const processed = getPosterizedImage(Math.round(drawWidth), Math.round(drawHeight));
-      ctx.drawImage(processed, offsetX2, offsetY2, drawWidth, drawHeight);
+      const processed = getPosterizedImage(posterizedWidth, posterizedHeight);
+      ctx.drawImage(processed, imageOffsetX, imageOffsetY, drawWidth, drawHeight);
     } else {
-      ctx.drawImage(userImage, offsetX2, offsetY2, drawWidth, drawHeight);
+      ctx.drawImage(userImage, imageOffsetX, imageOffsetY, drawWidth, drawHeight);
+      if (cellDownsampledCells.size) {
+        const processed = getPosterizedImage(posterizedWidth, posterizedHeight);
+        renderCellDownsamples(processed, imageOffsetX, imageOffsetY, drawWidth, drawHeight);
+      }
     }
   } else {
     ctx.fillStyle = "rgba(0,0,0,0.04)";
@@ -124,7 +132,7 @@ function draw() {
   }
   if (!gridOn)
     return;
-  const s = Number(spacing.value);
+  const s = Math.max(1, Number(spacing.value));
   const t = Number(thickness.value);
   const a = Number(opacity.value) / 100;
   ctx.save();
@@ -132,21 +140,61 @@ function draw() {
   ctx.strokeStyle = color.value;
   ctx.lineWidth = t;
   const offset = t % 2 === 1 ? 0.5 : 0;
-  const offsetX = (gridOffsetX % s + s) % s;
-  const offsetY = (gridOffsetY % s + s) % s;
-  for (let x = -offsetX;x <= w; x += s) {
+  const { normalizedX: gridNormalizedX, normalizedY: gridNormalizedY } = getNormalizedGridOffsets(s);
+  for (let x = -gridNormalizedX;x <= w; x += s) {
     ctx.beginPath();
     ctx.moveTo(Math.round(x) + offset, 0);
     ctx.lineTo(Math.round(x) + offset, h);
     ctx.stroke();
   }
-  for (let y = -offsetY;y <= h; y += s) {
+  for (let y = -gridNormalizedY;y <= h; y += s) {
     ctx.beginPath();
     ctx.moveTo(0, Math.round(y) + offset);
     ctx.lineTo(w, Math.round(y) + offset);
     ctx.stroke();
   }
   ctx.restore();
+}
+function getNormalizedGridOffsets(currentSpacing) {
+  const spacingValue2 = Number.isFinite(currentSpacing) && currentSpacing ? Math.max(1, currentSpacing) : Math.max(1, Number(spacing.value));
+  const normalizedX = (gridOffsetX % spacingValue2 + spacingValue2) % spacingValue2;
+  const normalizedY = (gridOffsetY % spacingValue2 + spacingValue2) % spacingValue2;
+  return { spacingValue: spacingValue2, normalizedX, normalizedY };
+}
+function renderCellDownsamples(source, imageOffsetX, imageOffsetY, drawWidth, drawHeight) {
+  const { spacingValue: spacingValue2, normalizedX, normalizedY } = getNormalizedGridOffsets();
+  if (!spacingValue2)
+    return;
+  const imageRight = imageOffsetX + drawWidth;
+  const imageBottom = imageOffsetY + drawHeight;
+  const posterizedWidth = source.width;
+  const posterizedHeight = source.height;
+  const scaleX = posterizedWidth / drawWidth;
+  const scaleY = posterizedHeight / drawHeight;
+  cellDownsampledCells.forEach((key) => {
+    const [colStr, rowStr] = key.split(",");
+    const col = Number(colStr);
+    const row = Number(rowStr);
+    if (!Number.isFinite(col) || !Number.isFinite(row))
+      return;
+    const cellLeft = col * spacingValue2 - normalizedX;
+    const cellTop = row * spacingValue2 - normalizedY;
+    const cellRight = cellLeft + spacingValue2;
+    const cellBottom = cellTop + spacingValue2;
+    const overlapLeft = Math.max(cellLeft, imageOffsetX);
+    const overlapTop = Math.max(cellTop, imageOffsetY);
+    const overlapRight = Math.min(cellRight, imageRight);
+    const overlapBottom = Math.min(cellBottom, imageBottom);
+    const overlapWidth = overlapRight - overlapLeft;
+    const overlapHeight = overlapBottom - overlapTop;
+    if (overlapWidth <= 0 || overlapHeight <= 0)
+      return;
+    const srcX = (overlapLeft - imageOffsetX) * scaleX;
+    const srcY = (overlapTop - imageOffsetY) * scaleY;
+    const srcWidth = overlapWidth * scaleX;
+    const srcHeight = overlapHeight * scaleY;
+    ctx.drawImage(source, srcX, srcY, srcWidth, srcHeight, overlapLeft, overlapTop, overlapWidth, overlapHeight);
+  });
 }
 function getPosterizedImage(targetWidth, targetHeight) {
   const width = Math.max(1, targetWidth);
@@ -216,6 +264,9 @@ function getBlockTargetCells() {
   if (!Number.isFinite(raw))
     return DEFAULT_BLOCK_TARGET_CELLS;
   return Math.max(min, Math.min(max, raw));
+}
+function getCellKey(col, row) {
+  return `${col},${row}`;
 }
 function getBucketIndex(r, g, b) {
   return r >> BUCKET_REDUCTION_SHIFT << RED_SHIFT | g >> BUCKET_REDUCTION_SHIFT << GREEN_SHIFT | b >> BUCKET_REDUCTION_SHIFT;
@@ -482,7 +533,8 @@ function persistSettings() {
       gridOn,
       posterizeOn,
       gridOffsetX,
-      gridOffsetY
+      gridOffsetY,
+      cellPosterize: Array.from(cellDownsampledCells)
     };
     window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(payload));
   } catch (error) {
@@ -536,9 +588,16 @@ function restoreSettings() {
     if (typeof saved.gridOffsetY === "number" && Number.isFinite(saved.gridOffsetY)) {
       gridOffsetY = saved.gridOffsetY;
     }
+    cellDownsampledCells.clear();
+    if (Array.isArray(saved.cellPosterize)) {
+      saved.cellPosterize.forEach((key) => {
+        if (typeof key === "string" && key.length) {
+          cellDownsampledCells.add(key);
+        }
+      });
+    }
     updateGridButtonUI();
     updatePosterizeButtonUI();
-    syncBlockResolutionAvailability();
     syncColorSwatch();
   } catch (error) {
     console.warn("Unable to restore settings", error);
@@ -563,23 +622,6 @@ function syncColorSwatch() {
     return;
   colorPanelButton.style.setProperty("--color-chip-color", color.value);
 }
-function syncBlockResolutionAvailability() {
-  const disabled = !posterizeOn;
-  blockResolution.disabled = disabled;
-  blockResolution.setAttribute("aria-disabled", disabled ? "true" : "false");
-  blockPanelElement.classList.toggle("disabled", disabled);
-  if (blockPanelButton) {
-    blockPanelButton.disabled = disabled;
-    blockPanelButton.setAttribute("aria-disabled", disabled ? "true" : "false");
-    if (disabled && blockPanelButton.classList.contains("active")) {
-      const fallbackButton = controlIconButtons.find((btn) => !btn.disabled);
-      const fallbackPanelId = fallbackButton?.dataset.panel || controlPanels[0]?.id || "";
-      if (fallbackPanelId) {
-        setActivePanel(fallbackPanelId);
-      }
-    }
-  }
-}
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
   updateGridButtonUI();
@@ -588,8 +630,10 @@ toggleGridButton.addEventListener("click", () => {
 });
 togglePosterizeButton.addEventListener("click", () => {
   posterizeOn = !posterizeOn;
+  if (posterizeOn && cellDownsampledCells.size) {
+    cellDownsampledCells.clear();
+  }
   updatePosterizeButtonUI();
-  syncBlockResolutionAvailability();
   persistSettings();
   draw();
 });
@@ -603,7 +647,6 @@ function updatePosterizeButtonUI() {
 }
 updateGridButtonUI();
 updatePosterizeButtonUI();
-syncBlockResolutionAvailability();
 function setActivePanel(panelId) {
   controlPanels.forEach((panel) => {
     panel.classList.toggle("active", panel.id === panelId);
@@ -650,8 +693,11 @@ canvas.addEventListener("pointerdown", (event) => {
   if (event.pointerType === "mouse" && event.button !== 0)
     return;
   gridDragPointerId = event.pointerId;
+  gridDragMoved = false;
   lastPointerX = event.clientX;
   lastPointerY = event.clientY;
+  dragStartPointerX = event.clientX;
+  dragStartPointerY = event.clientY;
   canvas.setPointerCapture(event.pointerId);
 });
 canvas.addEventListener("pointermove", (event) => {
@@ -659,6 +705,17 @@ canvas.addEventListener("pointermove", (event) => {
     return;
   const dx = event.clientX - lastPointerX;
   const dy = event.clientY - lastPointerY;
+  const totalDx = event.clientX - dragStartPointerX;
+  const totalDy = event.clientY - dragStartPointerY;
+  if (!gridDragMoved) {
+    const distanceSq = totalDx * totalDx + totalDy * totalDy;
+    if (distanceSq < GRID_DRAG_DEADZONE_SQ) {
+      lastPointerX = event.clientX;
+      lastPointerY = event.clientY;
+      return;
+    }
+    gridDragMoved = true;
+  }
   if (dx === 0 && dy === 0)
     return;
   gridOffsetX += dx;
@@ -671,13 +728,52 @@ canvas.addEventListener("pointermove", (event) => {
 function endGridDrag(event) {
   if (gridDragPointerId !== event.pointerId)
     return;
+  const shouldToggleCell = !gridDragMoved && event.type === "pointerup" && userImageLoaded;
   gridDragPointerId = null;
+  gridDragMoved = false;
   try {
     canvas.releasePointerCapture(event.pointerId);
   } catch (_) {}
+  if (shouldToggleCell) {
+    toggleCellAtPointer(event);
+  }
 }
 canvas.addEventListener("pointerup", endGridDrag);
 canvas.addEventListener("pointercancel", endGridDrag);
+function toggleCellAtPointer(event) {
+  const rect = canvas.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  toggleCellAtPosition(x, y);
+}
+function toggleCellAtPosition(x, y) {
+  if (!userImageLoaded)
+    return;
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  if (x < 0 || y < 0 || x > width || y > height)
+    return;
+  const { spacingValue: spacingValue2, normalizedX, normalizedY } = getNormalizedGridOffsets();
+  if (!spacingValue2)
+    return;
+  const col = Math.floor((x + normalizedX) / spacingValue2);
+  const row = Math.floor((y + normalizedY) / spacingValue2);
+  const key = getCellKey(col, row);
+  if (cellDownsampledCells.has(key)) {
+    cellDownsampledCells.delete(key);
+  } else {
+    disableGlobalPosterizeForCellMode();
+    cellDownsampledCells.add(key);
+  }
+  persistSettings();
+  draw();
+}
+function disableGlobalPosterizeForCellMode() {
+  if (!posterizeOn)
+    return;
+  posterizeOn = false;
+  updatePosterizeButtonUI();
+}
 window.addEventListener("resize", () => {
   clearTimeout(window.__gridResizeTimer);
   window.__gridResizeTimer = setTimeout(draw, 80);
