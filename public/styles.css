@@ -9,7 +9,7 @@ body {
     Segoe UI,
     Roboto,
     sans-serif;
-  padding: 16px;
+  padding: 0px;
   max-width: 900px;
   margin-inline: auto;
 }
@@ -109,4 +109,3 @@ input[type="file"] {
   justify-self: center;
   color: red;
 }
-

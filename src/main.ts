@@ -1,47 +1,63 @@
 const fileInput = document.getElementById("file");
+if (!fileInput) throw new Error("expected file input element, but found none");
+
 const canvas = document.getElementById("canvas")! as HTMLCanvasElement;
-if (!canvas) renderErrorAndThrow("expected canvas element");
-const ctx = canvas.getContext("2d");
 
-const spacing = document.getElementById("spacing");
-const thickness = document.getElementById("thickness");
-const opacity = document.getElementById("opacity");
-const color = document.getElementById("color");
+if (!canvas) throw new Error("expected canvas element, but found none");
 
-const spacingVal = document.getElementById("spacingVal");
-const thicknessVal = document.getElementById("thicknessVal");
-const opacityVal = document.getElementById("opacityVal");
+const ctx = canvas.getContext("2d")!;
 
-const fitBtn = document.getElementById("fitBtn");
-const toggleBtn = document.getElementById("toggleBtn");
+const spacing = document.getElementById("spacing") as HTMLInputElement;
+const thickness = document.getElementById("thickness") as HTMLInputElement;
+const opacity = document.getElementById("opacity") as HTMLInputElement;
+const color = document.getElementById("color") as HTMLInputElement;
 
-let img = new Image();
-let imgLoaded = false;
+if (!spacing || !thickness || !opacity || !color)
+  throw new Error("expected spacing, thickness, opacity, and color inputs");
+
+const spacingValue = document.getElementById("spacing-value");
+const thicknessValue = document.getElementById("thickness-value");
+const opacityValue = document.getElementById("opacity-value");
+
+if (!spacingValue || !thicknessValue || !opacityValue)
+  throw new Error("expected spacing, thickness, and opacity value elements");
+
+// button fits thes the image to the container
+const fitButton = document.getElementById("fit-button");
+if (!fitButton) throw new Error("expected fit button element, but found none");
+
+const toggleGridButton = document.getElementById("toggle-grid-button");
+if (!toggleGridButton)
+  throw new Error("expected toggle grid button element, but found none");
+
+let userImage = new Image();
+let userImageLoaded = false;
 let gridOn = true;
 
 // We draw at a resolution matching the on-screen width for crisp grid lines.
 function resizeCanvasToContainer() {
   const stage = canvas.parentElement!;
+
   if (!stage)
-    renderErrorAndThrow(
-      "expected canvas element to have a parent container with class 'stage'",
-    );
+    throw new Error("expected canvas element to have a parent container");
 
   const rect = stage.getBoundingClientRect();
   const displayWidth = Math.max(1, Math.floor(rect.width));
-  const dpr = window.devicePixelRatio || 1;
+  const pixelRatio = window.devicePixelRatio || 1;
 
   // If no image yet, set a default height.
-  const aspect = imgLoaded ? img.naturalHeight / img.naturalWidth : 3 / 4;
+  const aspect = userImageLoaded
+    ? userImage.naturalHeight / userImage.naturalWidth
+    : 3 / 4;
   const displayHeight = Math.floor(displayWidth * aspect);
 
   canvas.style.width = displayWidth + "px";
   canvas.style.height = displayHeight + "px";
 
-  canvas.width = Math.floor(displayWidth * dpr);
-  canvas.height = Math.floor(displayHeight * dpr);
+  canvas.width = Math.floor(displayWidth * pixelRatio);
+  canvas.height = Math.floor(displayHeight * pixelRatio);
 
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); // draw in CSS pixels
 }
 
 function draw() {
@@ -53,8 +69,8 @@ function draw() {
   ctx.clearRect(0, 0, w, h);
 
   // Draw image (fit to canvas)
-  if (imgLoaded) {
-    ctx.drawImage(img, 0, 0, w, h);
+  if (userImageLoaded) {
+    ctx.drawImage(userImage, 0, 0, w, h);
   } else {
     // Placeholder background
     ctx.fillStyle = "rgba(0,0,0,0.04)";
@@ -68,6 +84,7 @@ function draw() {
   if (!gridOn) return;
 
   // Grid settings
+
   const s = Number(spacing.value);
   const t = Number(thickness.value);
   const a = Number(opacity.value) / 100;
@@ -100,37 +117,44 @@ function draw() {
 }
 
 // Handle file upload (local only)
-fileInput.addEventListener("change", (e) => {
+fileInput!.addEventListener("change", (e) => {
+  if (!e.target || !(e.target instanceof HTMLInputElement)) {
+    throw new Error("expected file input element");
+  }
+
   const file = e.target.files?.[0];
   if (!file) return;
 
   const url = URL.createObjectURL(file);
-  img = new Image();
-  img.onload = () => {
-    imgLoaded = true;
+  userImage = new Image();
+  userImage.onload = () => {
+    userImageLoaded = true;
     URL.revokeObjectURL(url);
     draw();
   };
-  img.src = url;
+  userImage.src = url;
 });
 
 // Controls update
 function syncLabelsAndRedraw() {
-  spacingVal.textContent = spacing.value;
-  thicknessVal.textContent = thickness.value;
-  opacityVal.textContent = opacity.value;
+  if (!spacingValue || !thicknessValue || !opacityValue)
+    throw new Error("expected spacing, thickness, and opacity value elements");
+
+  spacingValue.textContent = spacing.value;
+  thicknessValue.textContent = thickness.value;
+  opacityValue.textContent = opacity.value;
   draw();
 }
 
-[spacing, thickness, opacity, color].forEach((el) => {
-  el.addEventListener("input", syncLabelsAndRedraw);
+[spacing, thickness, opacity, color].forEach((inputElement) => {
+  inputElement.addEventListener("input", syncLabelsAndRedraw);
 });
 
-fitBtn.addEventListener("click", draw);
+fitButton.addEventListener("click", draw);
 
-toggleBtn.addEventListener("click", () => {
+toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
-  toggleBtn.textContent = "Grid: " + (gridOn ? "On" : "Off");
+  toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");
   draw();
 });
 
@@ -143,12 +167,3 @@ window.addEventListener("resize", () => {
 
 // Initial render
 syncLabelsAndRedraw();
-
-function renderErrorAndThrow(msg: string) {
-  const errorMessage = document.createElement("p");
-  errorMessage.classList.add("error");
-  errorMessage.textContent = `Error: ${msg}`;
-  document.body.appendChild(errorMessage);
-  console.error(msg);
-  throw new Error(msg);
-}

@@ -10,49 +10,58 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <h1 style="margin: 0 0 10px">Perspective Frame</h1>
+    <div class="menu">
+      <h1 style="margin: 0 0 10px">Perspective Frame</h1>
+      <p class="hint">
+        Tip: On iPhone, add this page to your Home Screen to behave like an app.
+        This prototype doesn’t upload anything — the photo stays local in your
+        browser.
+      </p>
 
-    <div class="topbar">
-      <input id="file" type="file" accept="image/*" />
-      <button id="fitBtn" title="Re-fit image to the container">Fit</button>
-      <button id="toggleBtn" title="Show/Hide grid">Grid: On</button>
+      <div class="topbar">
+        <input id="file" type="file" accept="image/*" />
+        <button id="fit-button" title="Re-fit image to the container">
+          Fit
+        </button>
+        <button id="toggle-grid-button" title="Show/Hide grid">Grid: On</button>
+      </div>
+
+      <div class="controls" id="controls">
+        <div class="row">
+          <label for="spacing">grid spacing</label>
+          <input id="spacing" type="range" min="10" max="200" value="40" />
+          <div class="value"><span id="spacing-value">40</span> px</div>
+        </div>
+
+        <div class="row">
+          <label for="thickness">line thickness</label>
+          <input id="thickness" type="range" min="1" max="8" value="2" />
+          <div class="value"><span id="thickness-value">2</span> px</div>
+        </div>
+
+        <div class="row">
+          <label for="opacity">grid opacity</label>
+          <input id="opacity" type="range" min="0" max="100" value="55" />
+          <div class="value"><span id="opacity-value">55</span>%</div>
+        </div>
+
+        <div class="row">
+          <label for="color">grid color</label>
+          <input id="color" type="color" value="#00ffcc" />
+          <div class="value" style="opacity: 0.75">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <canvas id="canvas"></canvas>
+      </div>
     </div>
-
-    <div class="controls" id="controls">
-      <div class="row">
-        <label for="spacing">grid spacing</label>
-        <input id="spacing" type="range" min="10" max="200" value="40" />
-        <div class="value"><span id="spacingVal">40</span> px</div>
-      </div>
-
-      <div class="row">
-        <label for="thickness">line thickness</label>
-        <input id="thickness" type="range" min="1" max="8" value="2" />
-        <div class="value"><span id="thicknessVal">2</span> px</div>
-      </div>
-
-      <div class="row">
-        <label for="opacity">grid opacity</label>
-        <input id="opacity" type="range" min="0" max="100" value="55" />
-        <div class="value"><span id="opacityVal">55</span>%</div>
-      </div>
-
-      <div class="row">
-        <label for="color">grid color</label>
-        <input id="color" type="color" value="#00ffcc" />
-        <div class="value" style="opacity: 0.75">&nbsp;</div>
-      </div>
-    </div>
-
-    <div class="stage">
-      <canvas id="canvas"></canvas>
-    </div>
-
-    <p class="hint">
-      Tip: On iPhone, add this page to your Home Screen to behave like an app.
-      This prototype doesn’t upload anything — the photo stays local in your
-      browser.
-    </p>
     <script src="main.js"></script>
+    <script>
+      const drawer = document.querySelector(".drawer");
+      drawer.addEventListener("click", () => {
+        drawer.classList.toggle("not-sidebar");
+      });
+    </script>
   </body>
 </html>
