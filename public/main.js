@@ -52,6 +52,7 @@ var posterizeCacheWidth = 0;
 var posterizeCacheHeight = 0;
 var posterizeCacheRevision = -1;
 var posterizeCacheDetail = Number(blockResolution.value) || DEFAULT_BLOCK_TARGET_CELLS;
+var LAST_IMAGE_STORAGE_KEY = "perspective-frame:last-photo";
 var POSTERIZE_COLORS = 12;
 var BUCKET_BITS = 5;
 var BUCKET_SIZE = 1 << BUCKET_BITS;
@@ -410,17 +411,52 @@ fileInput.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
   if (!file)
     return;
-  const url = URL.createObjectURL(file);
-  userImage = new Image;
-  userImage.onload = () => {
+  const reader = new FileReader;
+  reader.addEventListener("load", () => {
+    if (typeof reader.result !== "string")
+      return;
+    loadUserImage(reader.result, { persist: true });
+  });
+  reader.addEventListener("error", () => {
+    console.warn("Unable to read the selected file");
+  });
+  reader.readAsDataURL(file);
+});
+function loadUserImage(dataUrl, options = {}) {
+  userImageLoaded = false;
+  const nextImage = new Image;
+  nextImage.onload = () => {
+    userImage = nextImage;
     userImageLoaded = true;
     imageRevision += 1;
     posterizeCacheRevision = -1;
-    URL.revokeObjectURL(url);
     draw();
   };
-  userImage.src = url;
-});
+  nextImage.onerror = () => {
+    console.warn("Unable to load image data");
+  };
+  if (options.persist) {
+    saveLastUserImage(dataUrl);
+  }
+  nextImage.src = dataUrl;
+}
+function saveLastUserImage(dataUrl) {
+  try {
+    window.localStorage.setItem(LAST_IMAGE_STORAGE_KEY, dataUrl);
+  } catch (error) {
+    console.warn("Unable to remember last photo", error);
+  }
+}
+function restoreLastUserImage() {
+  try {
+    const saved = window.localStorage.getItem(LAST_IMAGE_STORAGE_KEY);
+    if (!saved)
+      return;
+    loadUserImage(saved);
+  } catch (error) {
+    console.warn("Unable to access saved photo", error);
+  }
+}
 function syncLabelsAndRedraw() {
   if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
     throw new Error("expected spacing, thickness, opacity, and block resolution value elements");
@@ -481,6 +517,7 @@ openControlsButton.addEventListener("click", () => {
   const activeIcon = controlIconButtons.find((btn) => btn.classList.contains("active")) || controlIconButtons[0];
   activeIcon?.focus();
 });
+restoreLastUserImage();
 window.addEventListener("resize", () => {
   clearTimeout(window.__gridResizeTimer);
   window.__gridResizeTimer = setTimeout(draw, 80);

@@ -78,6 +78,7 @@ let posterizeCacheRevision = -1;
 let posterizeCacheDetail =
   Number(blockResolution.value) || DEFAULT_BLOCK_TARGET_CELLS;
 
+const LAST_IMAGE_STORAGE_KEY = "perspective-frame:last-photo";
 const POSTERIZE_COLORS = 12;
 const BUCKET_BITS = 5;
 const BUCKET_SIZE = 1 << BUCKET_BITS;
@@ -547,17 +548,53 @@ fileInput.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
-  const url = URL.createObjectURL(file);
-  userImage = new Image();
-  userImage.onload = () => {
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    if (typeof reader.result !== "string") return;
+    loadUserImage(reader.result, { persist: true });
+  });
+  reader.addEventListener("error", () => {
+    console.warn("Unable to read the selected file");
+  });
+  reader.readAsDataURL(file);
+});
+
+function loadUserImage(dataUrl: string, options: { persist?: boolean } = {}) {
+  userImageLoaded = false;
+  const nextImage = new Image();
+  nextImage.onload = () => {
+    userImage = nextImage;
     userImageLoaded = true;
     imageRevision += 1;
     posterizeCacheRevision = -1;
-    URL.revokeObjectURL(url);
     draw();
   };
-  userImage.src = url;
-});
+  nextImage.onerror = () => {
+    console.warn("Unable to load image data");
+  };
+  if (options.persist) {
+    saveLastUserImage(dataUrl);
+  }
+  nextImage.src = dataUrl;
+}
+
+function saveLastUserImage(dataUrl: string) {
+  try {
+    window.localStorage.setItem(LAST_IMAGE_STORAGE_KEY, dataUrl);
+  } catch (error) {
+    console.warn("Unable to remember last photo", error);
+  }
+}
+
+function restoreLastUserImage() {
+  try {
+    const saved = window.localStorage.getItem(LAST_IMAGE_STORAGE_KEY);
+    if (!saved) return;
+    loadUserImage(saved);
+  } catch (error) {
+    console.warn("Unable to access saved photo", error);
+  }
+}
 
 // Controls update
 function syncLabelsAndRedraw() {
@@ -649,6 +686,8 @@ openControlsButton.addEventListener("click", () => {
     controlIconButtons[0];
   activeIcon?.focus();
 });
+
+restoreLastUserImage();
 
 // Redraw on resize/orientation change
 window.addEventListener("resize", () => {
