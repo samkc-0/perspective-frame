@@ -1,8 +1,7 @@
 // src/main.ts
 var fileInput = document.getElementById("file");
 var canvas = document.getElementById("canvas");
-if (!canvas)
-  renderErrorAndThrow("expected canvas element");
+if (!canvas) renderErrorAndThrow("expected canvas element");
 var ctx = canvas.getContext("2d");
 var spacing = document.getElementById("spacing");
 var thickness = document.getElementById("thickness");
@@ -13,13 +12,15 @@ var thicknessVal = document.getElementById("thicknessVal");
 var opacityVal = document.getElementById("opacityVal");
 var fitBtn = document.getElementById("fitBtn");
 var toggleBtn = document.getElementById("toggleBtn");
-var img = new Image;
+var img = new Image();
 var imgLoaded = false;
 var gridOn = true;
 function resizeCanvasToContainer() {
   const stage = canvas.parentElement;
-  if (stage)
-    renderErrorAndThrow("expected canvas element to have a parent container with class 'stage'");
+  if (!stage)
+    renderErrorAndThrow(
+      "expected canvas element to have a parent container with class 'stage'",
+    );
   const rect = stage.getBoundingClientRect();
   const displayWidth = Math.max(1, Math.floor(rect.width));
   const dpr = window.devicePixelRatio || 1;
@@ -46,8 +47,7 @@ function draw() {
     ctx.textAlign = "center";
     ctx.fillText("Upload a photo to begin", w / 2, h / 2);
   }
-  if (!gridOn)
-    return;
+  if (!gridOn) return;
   const s = Number(spacing.value);
   const t = Number(thickness.value);
   const a = Number(opacity.value) / 100;
@@ -56,13 +56,13 @@ function draw() {
   ctx.strokeStyle = color.value;
   ctx.lineWidth = t;
   const offset = t % 2 === 1 ? 0.5 : 0;
-  for (let x = 0;x <= w; x += s) {
+  for (let x = 0; x <= w; x += s) {
     ctx.beginPath();
     ctx.moveTo(Math.round(x) + offset, 0);
     ctx.lineTo(Math.round(x) + offset, h);
     ctx.stroke();
   }
-  for (let y = 0;y <= h; y += s) {
+  for (let y = 0; y <= h; y += s) {
     ctx.beginPath();
     ctx.moveTo(0, Math.round(y) + offset);
     ctx.lineTo(w, Math.round(y) + offset);
@@ -72,10 +72,9 @@ function draw() {
 }
 fileInput.addEventListener("change", (e) => {
   const file = e.target.files?.[0];
-  if (!file)
-    return;
+  if (!file) return;
   const url = URL.createObjectURL(file);
-  img = new Image;
+  img = new Image();
   img.onload = () => {
     imgLoaded = true;
     URL.revokeObjectURL(url);
@@ -106,7 +105,7 @@ syncLabelsAndRedraw();
 function renderErrorAndThrow(msg) {
   const errorMessage = document.createElement("p");
   errorMessage.classList.add("error");
-  errorMessage.textContent = msg;
+  errorMessage.textContent = `Error: ${msg}`;
   document.body.appendChild(errorMessage);
   console.error(msg);
   throw new Error(msg);

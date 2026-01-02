@@ -22,7 +22,7 @@ let gridOn = true;
 // We draw at a resolution matching the on-screen width for crisp grid lines.
 function resizeCanvasToContainer() {
   const stage = canvas.parentElement!;
-  if (stage)
+  if (!stage)
     renderErrorAndThrow(
       "expected canvas element to have a parent container with class 'stage'",
     );
