@@ -30,6 +30,22 @@ const toggleGridButton = document.getElementById("toggle-grid-button");
 if (!toggleGridButton)
   throw new Error("expected toggle grid button element, but found none");
 
+const controlBar = document.getElementById("control-bar");
+const hideControlsButton = document.getElementById("hide-controls");
+const openControlsButton = document.getElementById("open-controls");
+const controlPanels = Array.from(
+  document.querySelectorAll<HTMLElement>(".control-panel")
+);
+const controlIconButtons = Array.from(
+  document.querySelectorAll<HTMLButtonElement>(".control-icon")
+);
+
+if (!controlBar || !hideControlsButton || !openControlsButton)
+  throw new Error("expected control bar elements");
+
+if (!controlPanels.length || !controlIconButtons.length)
+  throw new Error("expected control panels and icon buttons");
+
 let userImage = new Image();
 let userImageLoaded = false;
 let gridOn = true;
@@ -156,6 +172,48 @@ toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
   toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");
   draw();
+});
+
+function setActivePanel(panelId: string) {
+  controlPanels.forEach((panel) => {
+    panel.classList.toggle("active", panel.id === panelId);
+  });
+
+  controlIconButtons.forEach((btn) => {
+    const active = btn.dataset.panel === panelId;
+    btn.classList.toggle("active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+controlIconButtons.forEach((button) => {
+  button.setAttribute("aria-pressed", button.classList.contains("active") ? "true" : "false");
+  button.addEventListener("click", () => {
+    const targetPanel = button.dataset.panel;
+    if (!targetPanel) return;
+    setActivePanel(targetPanel);
+  });
+});
+
+const firstPanel =
+  controlIconButtons[0]?.dataset.panel || controlPanels[0]?.id || "";
+if (firstPanel) {
+  setActivePanel(firstPanel);
+}
+
+hideControlsButton.addEventListener("click", () => {
+  controlBar.classList.add("collapsed");
+  openControlsButton.classList.add("visible");
+  openControlsButton.focus();
+});
+
+openControlsButton.addEventListener("click", () => {
+  controlBar.classList.remove("collapsed");
+  openControlsButton.classList.remove("visible");
+  const activeIcon =
+    controlIconButtons.find((btn) => btn.classList.contains("active")) ||
+    controlIconButtons[0];
+  activeIcon?.focus();
 });
 
 // Redraw on resize/orientation change
