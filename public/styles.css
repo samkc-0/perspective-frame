@@ -1,36 +1,20 @@
-:root {
-  color-scheme: light dark;
-}
-html,
-body {
-  height: 100%;
-}
+<style>
+:root { color-scheme: light dark; }
 body {
   margin: 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    sans-serif;
-  padding: clamp(12px, 3vw, 28px);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: color-mix(in srgb, Canvas 92%, CanvasText 8%);
-}
-h1 {
-  margin: 0;
-  font-size: clamp(24px, 4vw, 32px);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  padding: 16px;
+  max-width: 900px;
+  margin-inline: auto;
 }
 
-.app-shell {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+.controls {
+  display: grid;
   gap: 12px;
-  position: relative;
-  z-index: 0;
+  padding: 12px;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 12px;
+  margin-bottom: 16px;
 }
 
 .row {
@@ -40,32 +24,18 @@ h1 {
   gap: 10px;
 }
 
-label {
-  font-weight: 600;
-}
-input[type="range"] {
-  width: 100%;
-}
-input[type="color"] {
-  width: 44px;
-  height: 32px;
-  padding: 0;
-  border: none;
-}
-.value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
+label { font-weight: 600; }
+input[type="range"] { width: 100%; }
+input[type="color"] { width: 44px; height: 32px; padding: 0; border: none; }
+.value { text-align: right; font-variant-numeric: tabular-nums; }
 
 .stage {
   position: relative;
   width: 100%;
   border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  background: rgba(0, 0, 0, 0.03);
-  flex: 1;
-  min-height: 0;
+  border: 1px solid rgba(0,0,0,0.15);
+  background: rgba(0,0,0,0.03);
 }
 
 /* The image is drawn onto a canvas for consistent sizing */
@@ -87,92 +57,20 @@ canvas {
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
+  margin-bottom: 12px;
 }
 
 button {
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0,0,0,0.2);
+  background: rgba(0,0,0,0.06);
   padding: 10px 12px;
   border-radius: 10px;
   font-weight: 700;
   cursor: pointer;
 }
-button:active {
-  transform: translateY(1px);
-}
+button:active { transform: translateY(1px); }
 
 input[type="file"] {
   width: 100%;
 }
-
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 12px;
-  background: Canvas;
-}
-
-.drawer-toggle {
-  position: fixed;
-  right: clamp(12px, 4vw, 32px);
-  bottom: clamp(12px, 4vw, 32px);
-  z-index: 30;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  background: Canvas;
-}
-
-.drawer {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 25;
-}
-
-.drawer-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.35);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.drawer-panel {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: Canvas;
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  padding: 16px;
-  box-shadow: 0 -18px 30px rgba(0, 0, 0, 0.18);
-  transform: translateY(100%);
-  transition: transform 0.25s ease;
-}
-
-.drawer-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.drawer-close {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.drawer.open {
-  pointer-events: auto;
-}
-
-.drawer.open .drawer-overlay {
-  opacity: 1;
-}
-
-.drawer.open .drawer-panel {
-  transform: translateY(0);
-}
+</style>

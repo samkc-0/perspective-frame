@@ -1,5 +1,5 @@
 const fileInput = document.getElementById("file");
-const canvas = document.getElementById("canvas");
+const canvas = document.getElementById("canvas")! as HTMLCanvasElement;
 const ctx = canvas.getContext("2d");
 
 const spacing = document.getElementById("spacing");
