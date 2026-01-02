@@ -11,27 +11,6 @@
   </head>
   <body>
     <div class="app">
-      <header class="header">
-        <div class="title-block">
-          <h1>Perspective Frame</h1>
-          <p class="hint">
-            Tip: On iPhone, add this page to your Home Screen to behave like an
-            app. This prototype doesn’t upload anything — the photo stays local
-            in your browser.
-          </p>
-        </div>
-
-        <div class="topbar">
-          <input id="file" type="file" accept="image/*" />
-          <button id="fit-button" title="Re-fit image to the container">
-            Fit
-          </button>
-          <button id="toggle-grid-button" title="Show/Hide grid">
-            Grid: On
-          </button>
-        </div>
-      </header>
-
       <div class="stage-shell">
         <div class="stage">
           <canvas id="canvas"></canvas>
@@ -41,6 +20,16 @@
 
     <div class="control-bar" id="control-bar">
       <div class="control-panel-container">
+        <div class="">
+          <input id="file" type="file" accept="image/*" />
+          <button id="fit-button" title="Re-fit image to the container">
+            Fit
+          </button>
+          <button id="toggle-grid-button" title="Show/Hide grid">
+            Grid: On
+          </button>
+        </div>
+
         <div class="control-panel active" id="spacing-panel">
           <div class="panel-header">
             <span>Grid spacing</span>
