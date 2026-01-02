@@ -39,9 +39,8 @@ function resizeCanvasToContainer() {
     throw new Error("expected canvas element to have a parent container");
   const rect = stage.getBoundingClientRect();
   const displayWidth = Math.max(1, Math.floor(rect.width));
+  const displayHeight = Math.max(1, Math.floor(rect.height));
   const pixelRatio = window.devicePixelRatio || 1;
-  const aspect = userImageLoaded ? userImage.naturalHeight / userImage.naturalWidth : 3 / 4;
-  const displayHeight = Math.floor(displayWidth * aspect);
   canvas.style.width = displayWidth + "px";
   canvas.style.height = displayHeight + "px";
   canvas.width = Math.floor(displayWidth * pixelRatio);
@@ -54,7 +53,12 @@ function draw() {
   const h = canvas.clientHeight;
   ctx.clearRect(0, 0, w, h);
   if (userImageLoaded) {
-    ctx.drawImage(userImage, 0, 0, w, h);
+    const scale = Math.max(w / userImage.naturalWidth, h / userImage.naturalHeight);
+    const drawWidth = userImage.naturalWidth * scale;
+    const drawHeight = userImage.naturalHeight * scale;
+    const offsetX = (w - drawWidth) / 2;
+    const offsetY = (h - drawHeight) / 2;
+    ctx.drawImage(userImage, offsetX, offsetY, drawWidth, drawHeight);
   } else {
     ctx.fillStyle = "rgba(0,0,0,0.04)";
     ctx.fillRect(0, 0, w, h);
