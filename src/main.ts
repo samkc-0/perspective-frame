@@ -1037,6 +1037,17 @@ function hideControls() {
 hideControlsButton.addEventListener("click", hideControls);
 openControlsButton.addEventListener("click", showControls);
 
+function handleOutsidePointerDown(event: PointerEvent) {
+  if (controlBar.classList.contains("collapsed")) return;
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (controlBar.contains(target)) return;
+  if (openControlsButton.contains(target)) return;
+  hideControls();
+}
+
+document.addEventListener("pointerdown", handleOutsidePointerDown);
+
 restoreSettings();
 restoreLastUserImage();
 hideControls();
