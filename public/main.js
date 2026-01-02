@@ -18,9 +18,6 @@ var thicknessValue = document.getElementById("thickness-value");
 var opacityValue = document.getElementById("opacity-value");
 if (!spacingValue || !thicknessValue || !opacityValue)
   throw new Error("expected spacing, thickness, and opacity value elements");
-var fitButton = document.getElementById("fit-button");
-if (!fitButton)
-  throw new Error("expected fit button element, but found none");
 var toggleGridButton = document.getElementById("toggle-grid-button");
 if (!toggleGridButton)
   throw new Error("expected toggle grid button element, but found none");
@@ -121,7 +118,6 @@ function syncLabelsAndRedraw() {
 [spacing, thickness, opacity, color].forEach((inputElement) => {
   inputElement.addEventListener("input", syncLabelsAndRedraw);
 });
-fitButton.addEventListener("click", draw);
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
   toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");

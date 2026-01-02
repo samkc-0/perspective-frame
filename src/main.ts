@@ -26,10 +26,6 @@ const opacityValue = document.getElementById("opacity-value");
 if (!spacingValue || !thicknessValue || !opacityValue)
   throw new Error("expected spacing, thickness, and opacity value elements");
 
-// button fits thes the image to the container
-const fitButton = document.getElementById("fit-button");
-if (!fitButton) throw new Error("expected fit button element, but found none");
-
 const toggleGridButton = document.getElementById("toggle-grid-button");
 if (!toggleGridButton)
   throw new Error("expected toggle grid button element, but found none");
@@ -175,8 +171,6 @@ function syncLabelsAndRedraw() {
 [spacing, thickness, opacity, color].forEach((inputElement) => {
   inputElement.addEventListener("input", syncLabelsAndRedraw);
 });
-
-fitButton.addEventListener("click", draw);
 
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
