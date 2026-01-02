@@ -20,26 +20,6 @@
 
     <div class="control-bar" id="control-bar">
       <div class="control-panel-container">
-        <div class="control-actions">
-          <input id="file" class="sr-only" type="file" accept="image/*" />
-          <button
-            type="button"
-            id="upload-button"
-            title="Load a photo from your device"
-          >
-            Load photo
-          </button>
-          <button id="toggle-grid-button" title="Show/Hide grid">
-            Grid: On
-          </button>
-          <button
-            id="toggle-posterize-button"
-            title="Posterize colors for block-in practice"
-          >
-            Downsample: Off
-          </button>
-        </div>
-
         <div class="control-panel active" id="spacing-panel">
           <div class="panel-header">
             <span>Grid spacing</span>
@@ -187,6 +167,26 @@
               stroke-linecap="round"
             />
           </svg>
+        </button>
+      </div>
+
+      <div class="control-actions">
+        <input id="file" class="sr-only" type="file" accept="image/*" />
+        <button
+          type="button"
+          id="upload-button"
+          title="Load a photo from your device"
+        >
+          Load photo
+        </button>
+        <button id="toggle-grid-button" title="Show/Hide grid">
+          Grid: On
+        </button>
+        <button
+          id="toggle-posterize-button"
+          title="Posterize colors for block-in practice"
+        >
+          Downsample: Off
         </button>
       </div>
 

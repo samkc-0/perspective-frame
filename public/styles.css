@@ -269,6 +269,7 @@ canvas {
   gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
+  margin: 24px 0 18px;
 }
 
 .control-panel.active {
