@@ -54,6 +54,10 @@ const controlPanels = Array.from(
 const controlIconButtons = Array.from(
   document.querySelectorAll<HTMLButtonElement>(".control-icon"),
 );
+const colorPanelButton =
+  controlIconButtons.find(
+    (btn) => btn.dataset.panel === "color-panel",
+  ) || null;
 
 if (!controlBar || !hideControlsButton || !openControlsButton)
   throw new Error("expected control bar elements");
@@ -612,6 +616,7 @@ function syncLabelsAndRedraw() {
   thicknessValue.textContent = thickness.value;
   opacityValue.textContent = opacity.value;
   blockResolutionValue.textContent = blockResolution.value;
+  syncColorSwatch();
   draw();
 }
 
@@ -620,6 +625,11 @@ function syncLabelsAndRedraw() {
     inputElement.addEventListener("input", syncLabelsAndRedraw);
   },
 );
+
+function syncColorSwatch() {
+  if (!colorPanelButton) return;
+  colorPanelButton.style.setProperty("--color-chip-color", color.value);
+}
 
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
@@ -662,7 +672,11 @@ controlIconButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const targetPanel = button.dataset.panel;
     if (!targetPanel) return;
+    const wasActive = button.classList.contains("active");
     setActivePanel(targetPanel);
+    if (colorPanelButton && button === colorPanelButton && wasActive) {
+      color.click();
+    }
   });
 });
 

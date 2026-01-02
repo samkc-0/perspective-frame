@@ -31,6 +31,7 @@ var hideControlsButton = document.getElementById("hide-controls");
 var openControlsButton = document.getElementById("open-controls");
 var controlPanels = Array.from(document.querySelectorAll(".control-panel"));
 var controlIconButtons = Array.from(document.querySelectorAll(".control-icon"));
+var colorPanelButton = controlIconButtons.find((btn) => btn.dataset.panel === "color-panel") || null;
 if (!controlBar || !hideControlsButton || !openControlsButton)
   throw new Error("expected control bar elements");
 if (!controlPanels.length || !controlIconButtons.length)
@@ -464,11 +465,17 @@ function syncLabelsAndRedraw() {
   thicknessValue.textContent = thickness.value;
   opacityValue.textContent = opacity.value;
   blockResolutionValue.textContent = blockResolution.value;
+  syncColorSwatch();
   draw();
 }
 [spacing, thickness, opacity, color, blockResolution].forEach((inputElement) => {
   inputElement.addEventListener("input", syncLabelsAndRedraw);
 });
+function syncColorSwatch() {
+  if (!colorPanelButton)
+    return;
+  colorPanelButton.style.setProperty("--color-chip-color", color.value);
+}
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
   toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");
@@ -499,7 +506,11 @@ controlIconButtons.forEach((button) => {
     const targetPanel = button.dataset.panel;
     if (!targetPanel)
       return;
+    const wasActive = button.classList.contains("active");
     setActivePanel(targetPanel);
+    if (colorPanelButton && button === colorPanelButton && wasActive) {
+      color.click();
+    }
   });
 });
 var firstPanel = controlIconButtons[0]?.dataset.panel || controlPanels[0]?.id || "";
