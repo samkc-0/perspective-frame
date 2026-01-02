@@ -276,6 +276,10 @@ canvas {
   display: flex;
 }
 
+.control-panel.disabled {
+  opacity: 0.45;
+}
+
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -332,6 +336,14 @@ canvas {
   color: var(--ink);
   border-color: rgba(0, 0, 0, 0.4);
   box-shadow: 0 8px 15px rgba(248, 194, 85, 0.5);
+}
+
+.control-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .control-icon.color-picker-control,

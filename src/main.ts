@@ -18,11 +18,16 @@ const color = document.getElementById("color") as HTMLInputElement;
 const blockResolution = document.getElementById(
   "block-resolution",
 ) as HTMLInputElement;
+const blockPanelElement = document.getElementById(
+  "block-panel",
+) as HTMLElement | null;
 
 if (!spacing || !thickness || !opacity || !color || !blockResolution)
   throw new Error(
     "expected spacing, thickness, opacity, color, and block resolution inputs",
   );
+if (!blockPanelElement)
+  throw new Error("expected color block detail panel element");
 
 const spacingValue = document.getElementById("spacing-value");
 const thicknessValue = document.getElementById("thickness-value");
@@ -58,6 +63,8 @@ const colorPanelButton =
   controlIconButtons.find(
     (btn) => btn.dataset.panel === "color-panel",
   ) || null;
+const blockPanelButton =
+  controlIconButtons.find((btn) => btn.dataset.panel === "block-panel") || null;
 
 if (!controlBar || !hideControlsButton || !openControlsButton)
   throw new Error("expected control bar elements");
@@ -631,6 +638,25 @@ function syncColorSwatch() {
   colorPanelButton.style.setProperty("--color-chip-color", color.value);
 }
 
+function syncBlockResolutionAvailability() {
+  const disabled = !posterizeOn;
+  blockResolution.disabled = disabled;
+  blockResolution.setAttribute("aria-disabled", disabled ? "true" : "false");
+  blockPanelElement.classList.toggle("disabled", disabled);
+  if (blockPanelButton) {
+    blockPanelButton.disabled = disabled;
+    blockPanelButton.setAttribute("aria-disabled", disabled ? "true" : "false");
+    if (disabled && blockPanelButton.classList.contains("active")) {
+      const fallbackButton = controlIconButtons.find((btn) => !btn.disabled);
+      const fallbackPanelId =
+        fallbackButton?.dataset.panel || controlPanels[0]?.id || "";
+      if (fallbackPanelId) {
+        setActivePanel(fallbackPanelId);
+      }
+    }
+  }
+}
+
 toggleGridButton.addEventListener("click", () => {
   gridOn = !gridOn;
   toggleGridButton.textContent = "Grid: " + (gridOn ? "On" : "Off");
@@ -646,11 +672,13 @@ togglePosterizeButton.addEventListener("click", () => {
     "aria-pressed",
     posterizeOn ? "true" : "false",
   );
+  syncBlockResolutionAvailability();
   draw();
 });
 
 toggleGridButton.setAttribute("aria-pressed", "true");
 togglePosterizeButton.setAttribute("aria-pressed", "false");
+syncBlockResolutionAvailability();
 
 function setActivePanel(panelId: string) {
   controlPanels.forEach((panel) => {
