@@ -4,6 +4,7 @@ var uploadButton = document.getElementById("upload-button");
 if (!fileInput || !uploadButton)
   throw new Error("expected upload controls, but found none");
 var canvas = document.getElementById("canvas");
+canvas.style.touchAction = "none";
 if (!canvas)
   throw new Error("expected canvas element, but found none");
 var ctx = canvas.getContext("2d");
@@ -44,6 +45,11 @@ var userImage = new Image;
 var userImageLoaded = false;
 var gridOn = true;
 var posterizeOn = false;
+var gridOffsetX = 0;
+var gridOffsetY = 0;
+var gridDragPointerId = null;
+var lastPointerX = 0;
+var lastPointerY = 0;
 var posterizeCanvas = document.createElement("canvas");
 var posterizeCtx = posterizeCanvas.getContext("2d");
 if (!posterizeCtx)
@@ -99,13 +105,13 @@ function draw() {
     const scale = Math.max(w / userImage.naturalWidth, h / userImage.naturalHeight);
     const drawWidth = userImage.naturalWidth * scale;
     const drawHeight = userImage.naturalHeight * scale;
-    const offsetX = (w - drawWidth) / 2;
-    const offsetY = (h - drawHeight) / 2;
+    const offsetX2 = (w - drawWidth) / 2;
+    const offsetY2 = (h - drawHeight) / 2;
     if (posterizeOn) {
       const processed = getPosterizedImage(Math.round(drawWidth), Math.round(drawHeight));
-      ctx.drawImage(processed, offsetX, offsetY, drawWidth, drawHeight);
+      ctx.drawImage(processed, offsetX2, offsetY2, drawWidth, drawHeight);
     } else {
-      ctx.drawImage(userImage, offsetX, offsetY, drawWidth, drawHeight);
+      ctx.drawImage(userImage, offsetX2, offsetY2, drawWidth, drawHeight);
     }
   } else {
     ctx.fillStyle = "rgba(0,0,0,0.04)";
@@ -125,13 +131,15 @@ function draw() {
   ctx.strokeStyle = color.value;
   ctx.lineWidth = t;
   const offset = t % 2 === 1 ? 0.5 : 0;
-  for (let x = 0;x <= w; x += s) {
+  const offsetX = (gridOffsetX % s + s) % s;
+  const offsetY = (gridOffsetY % s + s) % s;
+  for (let x = -offsetX;x <= w; x += s) {
     ctx.beginPath();
     ctx.moveTo(Math.round(x) + offset, 0);
     ctx.lineTo(Math.round(x) + offset, h);
     ctx.stroke();
   }
-  for (let y = 0;y <= h; y += s) {
+  for (let y = -offsetY;y <= h; y += s) {
     ctx.beginPath();
     ctx.moveTo(0, Math.round(y) + offset);
     ctx.lineTo(w, Math.round(y) + offset);
@@ -552,6 +560,39 @@ openControlsButton.addEventListener("click", () => {
   activeIcon?.focus();
 });
 restoreLastUserImage();
+canvas.addEventListener("pointerdown", (event) => {
+  if (!event.isPrimary)
+    return;
+  if (event.pointerType === "mouse" && event.button !== 0)
+    return;
+  gridDragPointerId = event.pointerId;
+  lastPointerX = event.clientX;
+  lastPointerY = event.clientY;
+  canvas.setPointerCapture(event.pointerId);
+});
+canvas.addEventListener("pointermove", (event) => {
+  if (gridDragPointerId !== event.pointerId)
+    return;
+  const dx = event.clientX - lastPointerX;
+  const dy = event.clientY - lastPointerY;
+  if (dx === 0 && dy === 0)
+    return;
+  gridOffsetX += dx;
+  gridOffsetY += dy;
+  lastPointerX = event.clientX;
+  lastPointerY = event.clientY;
+  draw();
+});
+function endGridDrag(event) {
+  if (gridDragPointerId !== event.pointerId)
+    return;
+  gridDragPointerId = null;
+  try {
+    canvas.releasePointerCapture(event.pointerId);
+  } catch (_) {}
+}
+canvas.addEventListener("pointerup", endGridDrag);
+canvas.addEventListener("pointercancel", endGridDrag);
 window.addEventListener("resize", () => {
   clearTimeout(window.__gridResizeTimer);
   window.__gridResizeTimer = setTimeout(draw, 80);

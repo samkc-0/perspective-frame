@@ -6,6 +6,7 @@ if (!fileInput || !uploadButton)
   throw new Error("expected upload controls, but found none");
 
 const canvas = document.getElementById("canvas")! as HTMLCanvasElement;
+canvas.style.touchAction = "none";
 
 if (!canvas) throw new Error("expected canvas element, but found none");
 
@@ -76,6 +77,11 @@ let userImage = new Image();
 let userImageLoaded = false;
 let gridOn = true;
 let posterizeOn = false;
+let gridOffsetX = 0;
+let gridOffsetY = 0;
+let gridDragPointerId: number | null = null;
+let lastPointerX = 0;
+let lastPointerY = 0;
 const posterizeCanvas = document.createElement("canvas");
 const posterizeCtx = posterizeCanvas.getContext("2d");
 if (!posterizeCtx) throw new Error("expected posterize canvas context");
@@ -185,8 +191,11 @@ function draw() {
   // Crisp lines trick: offset by 0.5 when thickness is odd
   const offset = t % 2 === 1 ? 0.5 : 0;
 
+  const offsetX = ((gridOffsetX % s) + s) % s;
+  const offsetY = ((gridOffsetY % s) + s) % s;
+
   // Vertical lines
-  for (let x = 0; x <= w; x += s) {
+  for (let x = -offsetX; x <= w; x += s) {
     ctx.beginPath();
     ctx.moveTo(Math.round(x) + offset, 0);
     ctx.lineTo(Math.round(x) + offset, h);
@@ -194,7 +203,7 @@ function draw() {
   }
 
   // Horizontal lines
-  for (let y = 0; y <= h; y += s) {
+  for (let y = -offsetY; y <= h; y += s) {
     ctx.beginPath();
     ctx.moveTo(0, Math.round(y) + offset);
     ctx.lineTo(w, Math.round(y) + offset);
@@ -730,6 +739,40 @@ openControlsButton.addEventListener("click", () => {
 });
 
 restoreLastUserImage();
+
+canvas.addEventListener("pointerdown", (event) => {
+  if (!event.isPrimary) return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  gridDragPointerId = event.pointerId;
+  lastPointerX = event.clientX;
+  lastPointerY = event.clientY;
+  canvas.setPointerCapture(event.pointerId);
+});
+
+canvas.addEventListener("pointermove", (event) => {
+  if (gridDragPointerId !== event.pointerId) return;
+  const dx = event.clientX - lastPointerX;
+  const dy = event.clientY - lastPointerY;
+  if (dx === 0 && dy === 0) return;
+  gridOffsetX += dx;
+  gridOffsetY += dy;
+  lastPointerX = event.clientX;
+  lastPointerY = event.clientY;
+  draw();
+});
+
+function endGridDrag(event: PointerEvent) {
+  if (gridDragPointerId !== event.pointerId) return;
+  gridDragPointerId = null;
+  try {
+    canvas.releasePointerCapture(event.pointerId);
+  } catch (_) {
+    // ignore
+  }
+}
+
+canvas.addEventListener("pointerup", endGridDrag);
+canvas.addEventListener("pointercancel", endGridDrag);
 
 // Redraw on resize/orientation change
 window.addEventListener("resize", () => {
