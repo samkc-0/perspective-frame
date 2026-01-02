@@ -38,9 +38,16 @@ function resizeCanvasToContainer() {
   if (!stage)
     throw new Error("expected canvas element to have a parent container");
   const rect = stage.getBoundingClientRect();
-  const displayWidth = Math.max(1, Math.floor(rect.width));
-  const displayHeight = Math.max(1, Math.floor(rect.height));
+  let displayWidth = Math.max(1, Math.floor(rect.width));
+  let displayHeight = Math.max(1, Math.floor(rect.height));
   const pixelRatio = window.devicePixelRatio || 1;
+  if (userImageLoaded) {
+    const widthScale = displayWidth / userImage.naturalWidth;
+    const heightScale = displayHeight / userImage.naturalHeight;
+    const scale = Math.min(widthScale, heightScale);
+    displayWidth = Math.max(1, Math.floor(userImage.naturalWidth * scale));
+    displayHeight = Math.max(1, Math.floor(userImage.naturalHeight * scale));
+  }
   canvas.style.width = displayWidth + "px";
   canvas.style.height = displayHeight + "px";
   canvas.width = Math.floor(displayWidth * pixelRatio);

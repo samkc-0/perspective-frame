@@ -176,6 +176,9 @@ button:active {
   max-width: none;
   border-radius: 0;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid rgba(58, 29, 7, 0.3);
   background: linear-gradient(145deg, rgba(72, 45, 20, 0.7), rgba(15, 10, 6, 0.9));
   box-shadow: none;
