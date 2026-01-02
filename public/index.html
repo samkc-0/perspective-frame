@@ -32,7 +32,10 @@
           <button id="toggle-grid-button" title="Show/Hide grid">
             Grid: On
           </button>
-          <button id="toggle-posterize-button" title="Posterize colors for block-in practice">
+          <button
+            id="toggle-posterize-button"
+            title="Posterize colors for block-in practice"
+          >
             Posterize: Off
           </button>
         </div>
@@ -67,6 +70,22 @@
             <span class="value">&nbsp;</span>
           </div>
           <input id="color" type="color" value="#000000" />
+        </div>
+
+        <div class="control-panel" id="block-panel">
+          <div class="panel-header">
+            <span>Color block detail</span>
+            <span class="value"
+              ><span id="block-resolution-value">90</span> cells</span
+            >
+          </div>
+          <input
+            id="block-resolution"
+            type="range"
+            min="30"
+            max="200"
+            value="90"
+          />
         </div>
       </div>
 
@@ -152,6 +171,33 @@
             <circle cx="9" cy="11" r="1" fill="currentColor" />
             <circle cx="12" cy="9" r="1" fill="currentColor" />
             <circle cx="15" cy="11" r="1" fill="currentColor" />
+          </svg>
+        </button>
+        <button
+          class="control-icon"
+          data-panel="block-panel"
+          aria-controls="block-panel"
+          aria-label="Color block detail"
+        >
+          <span class="sr-only">Color block detail</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect
+              x="4"
+              y="4"
+              width="16"
+              height="16"
+              rx="3"
+              ry="3"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+            />
+            <path
+              d="M4 10h16M10 4v16"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            />
           </svg>
         </button>
       </div>

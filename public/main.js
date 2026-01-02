@@ -11,13 +11,15 @@ var spacing = document.getElementById("spacing");
 var thickness = document.getElementById("thickness");
 var opacity = document.getElementById("opacity");
 var color = document.getElementById("color");
-if (!spacing || !thickness || !opacity || !color)
-  throw new Error("expected spacing, thickness, opacity, and color inputs");
+var blockResolution = document.getElementById("block-resolution");
+if (!spacing || !thickness || !opacity || !color || !blockResolution)
+  throw new Error("expected spacing, thickness, opacity, color, and block resolution inputs");
 var spacingValue = document.getElementById("spacing-value");
 var thicknessValue = document.getElementById("thickness-value");
 var opacityValue = document.getElementById("opacity-value");
-if (!spacingValue || !thicknessValue || !opacityValue)
-  throw new Error("expected spacing, thickness, and opacity value elements");
+var blockResolutionValue = document.getElementById("block-resolution-value");
+if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
+  throw new Error("expected spacing, thickness, opacity, and block resolution value elements");
 var toggleGridButton = document.getElementById("toggle-grid-button");
 var togglePosterizeButton = document.getElementById("toggle-posterize-button");
 if (!toggleGridButton)
@@ -49,6 +51,7 @@ var imageRevision = 0;
 var posterizeCacheWidth = 0;
 var posterizeCacheHeight = 0;
 var posterizeCacheRevision = -1;
+var posterizeCacheDetail = Number(blockResolution.value) || DEFAULT_BLOCK_TARGET_CELLS;
 var POSTERIZE_COLORS = 12;
 var BUCKET_BITS = 5;
 var BUCKET_SIZE = 1 << BUCKET_BITS;
@@ -58,7 +61,7 @@ var GREEN_SHIFT = BUCKET_BITS;
 var BLUE_SHIFT = 0;
 var BUCKET_REDUCTION_SHIFT = 8 - BUCKET_BITS;
 var BUCKET_MASK = BUCKET_SIZE - 1;
-var BLOCK_TARGET_CELLS = 90;
+var DEFAULT_BLOCK_TARGET_CELLS = 90;
 var BLOCK_MIN_CELL_PX = 5;
 function resizeCanvasToContainer() {
   const stage = canvas.parentElement;
@@ -133,14 +136,16 @@ function draw() {
 function getPosterizedImage(targetWidth, targetHeight) {
   const width = Math.max(1, targetWidth);
   const height = Math.max(1, targetHeight);
+  const detailTarget = getBlockTargetCells();
   const sizeChanged = posterizeCacheWidth !== width || posterizeCacheHeight !== height;
   const sourceChanged = posterizeCacheRevision !== imageRevision;
-  if (!sizeChanged && !sourceChanged) {
+  const detailChanged = posterizeCacheDetail !== detailTarget;
+  if (!sizeChanged && !sourceChanged && !detailChanged) {
     return posterizeCanvas;
   }
   posterizeCanvas.width = width;
   posterizeCanvas.height = height;
-  const { sampleWidth, sampleHeight } = getSampleDimensions(width, height);
+  const { sampleWidth, sampleHeight } = getSampleDimensions(width, height, detailTarget);
   blockSampleCanvas.width = sampleWidth;
   blockSampleCanvas.height = sampleHeight;
   blockSampleCtx.save();
@@ -160,6 +165,7 @@ function getPosterizedImage(targetWidth, targetHeight) {
   posterizeCacheWidth = width;
   posterizeCacheHeight = height;
   posterizeCacheRevision = imageRevision;
+  posterizeCacheDetail = detailTarget;
   return posterizeCanvas;
 }
 function applyPosterize(data) {
@@ -181,12 +187,20 @@ function applyPosterize(data) {
     data[i + 2] = Math.round(color2.b);
   }
 }
-function getSampleDimensions(width, height) {
+function getSampleDimensions(width, height, targetCells) {
   const longestSide = Math.max(width, height);
-  const desiredCellSize = Math.max(BLOCK_MIN_CELL_PX, Math.round(longestSide / BLOCK_TARGET_CELLS));
+  const desiredCellSize = Math.max(BLOCK_MIN_CELL_PX, Math.round(longestSide / targetCells));
   const sampleWidth = Math.max(1, Math.round(width / desiredCellSize));
   const sampleHeight = Math.max(1, Math.round(height / desiredCellSize));
   return { sampleWidth, sampleHeight };
+}
+function getBlockTargetCells() {
+  const raw = Number(blockResolution.value);
+  const min = Number(blockResolution.min) || 1;
+  const max = Number(blockResolution.max) || raw || DEFAULT_BLOCK_TARGET_CELLS;
+  if (!Number.isFinite(raw))
+    return DEFAULT_BLOCK_TARGET_CELLS;
+  return Math.max(min, Math.min(max, raw));
 }
 function getBucketIndex(r, g, b) {
   return r >> BUCKET_REDUCTION_SHIFT << RED_SHIFT | g >> BUCKET_REDUCTION_SHIFT << GREEN_SHIFT | b >> BUCKET_REDUCTION_SHIFT;
@@ -408,14 +422,15 @@ fileInput.addEventListener("change", (e) => {
   userImage.src = url;
 });
 function syncLabelsAndRedraw() {
-  if (!spacingValue || !thicknessValue || !opacityValue)
-    throw new Error("expected spacing, thickness, and opacity value elements");
+  if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
+    throw new Error("expected spacing, thickness, opacity, and block resolution value elements");
   spacingValue.textContent = spacing.value;
   thicknessValue.textContent = thickness.value;
   opacityValue.textContent = opacity.value;
+  blockResolutionValue.textContent = blockResolution.value;
   draw();
 }
-[spacing, thickness, opacity, color].forEach((inputElement) => {
+[spacing, thickness, opacity, color, blockResolution].forEach((inputElement) => {
   inputElement.addEventListener("input", syncLabelsAndRedraw);
 });
 toggleGridButton.addEventListener("click", () => {

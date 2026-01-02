@@ -15,16 +15,24 @@ const spacing = document.getElementById("spacing") as HTMLInputElement;
 const thickness = document.getElementById("thickness") as HTMLInputElement;
 const opacity = document.getElementById("opacity") as HTMLInputElement;
 const color = document.getElementById("color") as HTMLInputElement;
+const blockResolution = document.getElementById(
+  "block-resolution"
+) as HTMLInputElement;
 
-if (!spacing || !thickness || !opacity || !color)
-  throw new Error("expected spacing, thickness, opacity, and color inputs");
+if (!spacing || !thickness || !opacity || !color || !blockResolution)
+  throw new Error(
+    "expected spacing, thickness, opacity, color, and block resolution inputs"
+  );
 
 const spacingValue = document.getElementById("spacing-value");
 const thicknessValue = document.getElementById("thickness-value");
 const opacityValue = document.getElementById("opacity-value");
+const blockResolutionValue = document.getElementById("block-resolution-value");
 
-if (!spacingValue || !thicknessValue || !opacityValue)
-  throw new Error("expected spacing, thickness, and opacity value elements");
+if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
+  throw new Error(
+    "expected spacing, thickness, opacity, and block resolution value elements"
+  );
 
 const toggleGridButton = document.getElementById(
   "toggle-grid-button"
@@ -67,6 +75,8 @@ let imageRevision = 0;
 let posterizeCacheWidth = 0;
 let posterizeCacheHeight = 0;
 let posterizeCacheRevision = -1;
+let posterizeCacheDetail =
+  Number(blockResolution.value) || DEFAULT_BLOCK_TARGET_CELLS;
 
 const POSTERIZE_COLORS = 12;
 const BUCKET_BITS = 5;
@@ -77,7 +87,7 @@ const GREEN_SHIFT = BUCKET_BITS;
 const BLUE_SHIFT = 0;
 const BUCKET_REDUCTION_SHIFT = 8 - BUCKET_BITS;
 const BUCKET_MASK = BUCKET_SIZE - 1;
-const BLOCK_TARGET_CELLS = 90;
+const DEFAULT_BLOCK_TARGET_CELLS = 90;
 const BLOCK_MIN_CELL_PX = 5;
 
 // We draw at a resolution matching the on-screen width for crisp grid lines.
@@ -186,18 +196,24 @@ function getPosterizedImage(
   const width = Math.max(1, targetWidth);
   const height = Math.max(1, targetHeight);
 
+  const detailTarget = getBlockTargetCells();
   const sizeChanged =
     posterizeCacheWidth !== width || posterizeCacheHeight !== height;
   const sourceChanged = posterizeCacheRevision !== imageRevision;
+  const detailChanged = posterizeCacheDetail !== detailTarget;
 
-  if (!sizeChanged && !sourceChanged) {
+  if (!sizeChanged && !sourceChanged && !detailChanged) {
     return posterizeCanvas;
   }
 
   posterizeCanvas.width = width;
   posterizeCanvas.height = height;
 
-  const { sampleWidth, sampleHeight } = getSampleDimensions(width, height);
+  const { sampleWidth, sampleHeight } = getSampleDimensions(
+    width,
+    height,
+    detailTarget
+  );
   blockSampleCanvas.width = sampleWidth;
   blockSampleCanvas.height = sampleHeight;
 
@@ -226,6 +242,7 @@ function getPosterizedImage(
   posterizeCacheWidth = width;
   posterizeCacheHeight = height;
   posterizeCacheRevision = imageRevision;
+  posterizeCacheDetail = detailTarget;
 
   return posterizeCanvas;
 }
@@ -251,15 +268,27 @@ function applyPosterize(data: Uint8ClampedArray) {
   }
 }
 
-function getSampleDimensions(width: number, height: number) {
+function getSampleDimensions(
+  width: number,
+  height: number,
+  targetCells: number
+) {
   const longestSide = Math.max(width, height);
   const desiredCellSize = Math.max(
     BLOCK_MIN_CELL_PX,
-    Math.round(longestSide / BLOCK_TARGET_CELLS)
+    Math.round(longestSide / targetCells)
   );
   const sampleWidth = Math.max(1, Math.round(width / desiredCellSize));
   const sampleHeight = Math.max(1, Math.round(height / desiredCellSize));
   return { sampleWidth, sampleHeight };
+}
+
+function getBlockTargetCells() {
+  const raw = Number(blockResolution.value);
+  const min = Number(blockResolution.min) || 1;
+  const max = Number(blockResolution.max) || raw || DEFAULT_BLOCK_TARGET_CELLS;
+  if (!Number.isFinite(raw)) return DEFAULT_BLOCK_TARGET_CELLS;
+  return Math.max(min, Math.min(max, raw));
 }
 
 type PaletteColor = {
@@ -527,16 +556,19 @@ fileInput.addEventListener("change", (e) => {
 
 // Controls update
 function syncLabelsAndRedraw() {
-  if (!spacingValue || !thicknessValue || !opacityValue)
-    throw new Error("expected spacing, thickness, and opacity value elements");
+  if (!spacingValue || !thicknessValue || !opacityValue || !blockResolutionValue)
+    throw new Error(
+      "expected spacing, thickness, opacity, and block resolution value elements"
+    );
 
   spacingValue.textContent = spacing.value;
   thicknessValue.textContent = thickness.value;
   opacityValue.textContent = opacity.value;
+  blockResolutionValue.textContent = blockResolution.value;
   draw();
 }
 
-[spacing, thickness, opacity, color].forEach((inputElement) => {
+[spacing, thickness, opacity, color, blockResolution].forEach((inputElement) => {
   inputElement.addEventListener("input", syncLabelsAndRedraw);
 });
 
